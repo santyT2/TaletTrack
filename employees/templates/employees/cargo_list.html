@@ -1,0 +1,88 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Lista de Cargos{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-briefcase"></i> Gestión de Cargos</h3>
+        {% if user.is_staff %}
+        <div class="card-tools">
+            <a href="#" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Nuevo Cargo
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="cargosTable" class="table table-striped table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Nivel</th>
+                        <th>Salario Base</th>
+                        <th>Creado</th>
+                        {% if user.is_staff %}
+                        <th>Acciones</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cargo in cargos %}
+                    <tr>
+                        <td>{{ cargo.id }}</td>
+                        <td>{{ cargo.nombre }}</td>
+                        <td>
+                            {% if cargo.nivel_requerido == 'junior' %}
+                                <span class="badge bg-info">Junior</span>
+                            {% elif cargo.nivel_requerido == 'semior' %}
+                                <span class="badge bg-warning">Semi-Senior</span>
+                            {% elif cargo.nivel_requerido == 'senior' %}
+                                <span class="badge bg-success">Senior</span>
+                            {% elif cargo.nivel_requerido == 'lider' %}
+                                <span class="badge bg-primary">Líder</span>
+                            {% endif %}
+                        </td>
+                        <td>${{ cargo.salario_base|floatformat:0 }}</td>
+                        <td>{{ cargo.created_at|date:"d/m/Y" }}</td>
+                        {% if user.is_staff %}
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="#" class="btn btn-warning btn-sm" title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="#" class="btn btn-danger btn-sm" title="Eliminar">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{% if user.is_staff %}6{% else %}5{% endif %}" class="text-center text-muted">
+                            No hay cargos registrados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    $('#cargosTable').DataTable({
+        "language": {
+            "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json"
+        },
+        "pageLength": 10,
+        "responsive": true,
+        "order": [[0, "desc"]]
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,122 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Lista de Empleados{% endblock %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fas fa-users"></i> Gestión de Empleados</h3>
+                    {% if user.is_staff %}
+                    <div class="card-tools">
+                        <a href="{% url 'employees:empleado-create' %}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Nuevo Empleado
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table id="empleadosTable" class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Cédula</th>
+                                    <th>Nombres</th>
+                                    <th>Apellidos</th>
+                                    <th>Cargo</th>
+                                    <th>Sucursal</th>
+                                    <th>Estado</th>
+                                    {% if user.is_staff %}
+                                    <th>Acciones</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for empleado in empleados %}
+                                <tr>
+                                    <td>{{ empleado.id }}</td>
+                                    <td>{{ empleado.cedula }}</td>
+                                    <td>{{ empleado.nombres }}</td>
+                                    <td>{{ empleado.apellidos }}</td>
+                                    <td>{{ empleado.cargo.nombre }}</td>
+                                    <td>{{ empleado.sucursal.nombre }}</td>
+                                    <td>
+                                        {% if empleado.estado == 'activo' %}
+                                            <span class="badge bg-success">Activo</span>
+                                        {% elif empleado.estado == 'inactivo' %}
+                                            <span class="badge bg-danger">Inactivo</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">{{ empleado.estado }}</span>
+                                        {% endif %}
+                                    </td>
+                                    {% if user.is_staff %}
+                                    <td>
+                                        <a href="{% url 'employees:empleado-detail' empleado.pk %}" class="btn btn-view btn-action" title="Ver">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{% url 'employees:empleado-update' empleado.pk %}" class="btn btn-edit btn-action" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <button class="btn btn-delete btn-action" title="Eliminar" onclick="confirmarEliminar('{{ empleado.nombres }} {{ empleado.apellidos }}', {% url 'employees:empleado-delete' empleado.pk %})">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                    {% endif %}
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="{% if user.is_staff %}8{% else %}7{% endif %}" class="text-center">No hay empleados registrados.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    $('#empleadosTable').DataTable({
+        "language": {
+            "lengthMenu": "Mostrar _MENU_ registros por página",
+            "zeroRecords": "No se encontraron resultados",
+            "info": "Mostrando página _PAGE_ de _PAGES_",
+            "infoEmpty": "No hay registros disponibles",
+            "infoFiltered": "(filtrado de _MAX_ registros totales)",
+            "search": "Buscar:",
+            "paginate": {
+                "first": "Primero",
+                "last": "Último",
+                "next": "Siguiente",
+                "previous": "Anterior"
+            }
+        },
+        "pageLength": 10,
+        "responsive": true,
+        "order": [[0, "desc"]]
+    });
+});
+
+function confirmarEliminar(nombre, url) {
+    Swal.fire({
+        title: '¿Estás seguro?',
+        text: `¿Deseas eliminar al empleado "${nombre}"? Esta acción no se puede deshacer.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            window.location.href = url;
+        }
+    });
+}
+</script>
+{% endblock %}

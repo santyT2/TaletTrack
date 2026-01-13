@@ -1,0 +1,255 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Detalle de Empleado{% endblock %}
+
+{% block content %}
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title"><i class="fas fa-user"></i> Detalle del Empleado</h3>
+                    <div class="card-tools">
+                        {% if user.is_staff %}
+                        <a href="{% url 'employees:empleado-update' empleado.pk %}" class="btn btn-warning btn-sm">
+                            <i class="fas fa-edit"></i> Editar
+                        </a>
+                        {% if empleado.estado == 'activo' %}
+                        <button id="marcar-entrada" class="btn btn-success btn-sm" data-empleado-id="{{ empleado.pk }}">
+                            <i class="fas fa-clock"></i> Marcar Entrada
+                        </button>
+                        {% endif %}
+                        {% endif %}
+                        <a href="{% url 'employees:empleado-list' %}" class="btn btn-secondary btn-sm">
+                            <i class="fas fa-arrow-left"></i> Volver
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 text-center">
+                            {% if empleado.foto %}
+                                <img src="{{ empleado.foto.url }}" alt="Foto de {{ empleado.nombres }}" class="img-fluid rounded-circle mb-3" style="max-width: 150px;">
+                            {% else %}
+                                <div class="bg-light rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 150px; height: 150px;">
+                                    <i class="fas fa-user fa-3x text-muted"></i>
+                                </div>
+                            {% endif %}
+                            <h5>{{ empleado.nombres }} {{ empleado.apellidos }}</h5>
+                            <p class="text-muted">{{ empleado.cargo.nombre }}</p>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <strong>Cédula:</strong><br>
+                                    {{ empleado.cedula }}
+                                </div>
+                                <div class="col-sm-6">
+                                    <strong>Estado:</strong><br>
+                                    {% if empleado.estado == 'activo' %}
+                                        <span class="badge bg-success">Activo</span>
+                                    {% elif empleado.estado == 'inactivo' %}
+                                        <span class="badge bg-danger">Inactivo</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">{{ empleado.estado }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <strong>Email:</strong><br>
+                                    {{ empleado.email }}
+                                </div>
+                                <div class="col-sm-6">
+                                    <strong>Teléfono:</strong><br>
+                                    {{ empleado.telefono }}
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <strong>Sucursal:</strong><br>
+                                    {{ empleado.sucursal.nombre }}
+                                </div>
+                                <div class="col-sm-6">
+                                    <strong>Fecha de Contratación:</strong><br>
+                                    {{ empleado.fecha_ingreso|date:"d/m/Y" }}
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <strong>Fecha de Nacimiento:</strong><br>
+                                    {{ empleado.fecha_nacimiento|date:"d/m/Y" }}
+                                </div>
+                                <div class="col-sm-6">
+                                    <strong>Salario:</strong><br>
+                                    ${{ empleado.cargo.salario_base }}
+                                </div>
+                            </div>
+                            {% if empleado.direccion %}
+                            <hr>
+                            <div class="row">
+                                <div class="col-12">
+                                    <strong>Dirección:</strong><br>
+                                    {{ empleado.direccion }}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer text-muted">
+                    Creado: {{ empleado.created_at|date:"d/m/Y H:i" }} | Actualizado: {{ empleado.updated_at|date:"d/m/Y H:i" }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    $('#marcar-entrada').click(function() {
+        const empleadoId = $(this).data('empleado-id');
+        
+        // Verificar si el navegador soporta geolocalización
+        if (!navigator.geolocation) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Tu navegador no soporta geolocalización.'
+            });
+            return;
+        }
+        
+        // Mostrar loading
+        Swal.fire({
+            title: 'Obteniendo ubicación...',
+            text: 'Por favor espera mientras obtenemos tu ubicación.',
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            willOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        
+        // Obtener la ubicación
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                const latitud = position.coords.latitude;
+                const longitud = position.coords.longitude;
+                
+                // Cerrar el loading y mostrar confirmación
+                Swal.close();
+                
+                Swal.fire({
+                    title: '¿Marcar entrada?',
+                    text: `Ubicación obtenida: ${latitud.toFixed(6)}, ${longitud.toFixed(6)}`,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Sí, marcar entrada',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Enviar la solicitud AJAX
+                        marcarAsistencia(empleadoId, latitud, longitud);
+                    }
+                });
+            },
+            function(error) {
+                Swal.close();
+                let mensajeError = 'Error al obtener la ubicación.';
+                
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        mensajeError = 'Permiso de ubicación denegado. Por favor, permite el acceso a la ubicación.';
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        mensajeError = 'Ubicación no disponible.';
+                        break;
+                    case error.TIMEOUT:
+                        mensajeError = 'Tiempo de espera agotado para obtener la ubicación.';
+                        break;
+                }
+                
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error de ubicación',
+                    text: mensajeError
+                });
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 300000 // 5 minutos
+            }
+        );
+    });
+    
+    function marcarAsistencia(empleadoId, latitud, longitud) {
+        // Mostrar loading
+        Swal.fire({
+            title: 'Marcando asistencia...',
+            text: 'Por favor espera.',
+            allowOutsideClick: false,
+            showConfirmButton: false,
+            willOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        
+        // Enviar POST request
+        fetch('{% url "attendance:marcar-asistencia" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+            },
+            body: JSON.stringify({
+                empleado_id: empleadoId,
+                tipo: 'ENTRADA',
+                latitud: latitud,
+                longitud: longitud
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            Swal.close();
+            
+            if (data.success) {
+                let mensaje = data.message;
+                if (data.registro && data.registro.es_tardanza) {
+                    mensaje += ' (Tardanza)';
+                }
+                
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Éxito!',
+                    text: mensaje,
+                    timer: 3000,
+                    showConfirmButton: false
+                });
+                
+                // Deshabilitar el botón después de marcar
+                $('#marcar-entrada').prop('disabled', true).text('Entrada Marcada');
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.message
+                });
+            }
+        })
+        .catch(error => {
+            Swal.close();
+            console.error('Error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Error de conexión. Inténtalo de nuevo.'
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Inicio - Talent Track{% endblock %}
+
+{% block content %}
+<div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Bienvenido a Talent Track</h3>
+                </div>
+                <div class="card-body">
+                    <p>Sistema de gestión de empleados y asistencia.</p>
+                    <a href="{% url 'employees:empleado-list' %}" class="btn btn-primary">Ver Empleados</a>
+                    <a href="/admin/" class="btn btn-secondary">Administración</a>
+                    {% if user.is_staff %}
+                    <a href="{% url 'attendance:exportar-asistencia-excel' %}" class="btn btn-success">
+                        <i class="fas fa-file-excel"></i> Exportar Pre-Nómina
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+{% endblock %}
