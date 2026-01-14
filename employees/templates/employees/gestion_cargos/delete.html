@@ -1,0 +1,22 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Eliminar Cargo{% endblock %}
+
+{% block content %}
+<div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Confirmar Eliminación</h3>
+                </div>
+                <div class="card-body">
+                    <p>¿Estás seguro de que deseas eliminar el cargo <strong>{{ cargo.nombre }}</strong>?</p>
+                    <p class="text-muted">Esta acción no se puede deshacer.</p>
+                </div>
+                <div class="card-footer">
+                    <form method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                        <a href="{% url 'employees:cargo-list' %}" class="btn btn-secondary">Cancelar</a>
+                    </form>
+                </div>
+            </div>
+{% endblock %}

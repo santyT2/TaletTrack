@@ -1,5 +1,9 @@
 from django.urls import path
-from .views import EmpleadoListView, EmpleadoCreateView, EmpleadoUpdateView, EmpleadoDeleteView, EmpleadoDetailView, SucursalListView, CargoListView
+from .views import (
+    EmpleadoListView, EmpleadoCreateView, EmpleadoUpdateView, EmpleadoDeleteView, EmpleadoDetailView,
+    SucursalListView, SucursalCreateView, SucursalUpdateView, SucursalDeleteView,
+    CargoListView, CargoCreateView, CargoUpdateView, CargoDeleteView
+)
 
 app_name = 'employees'
 
@@ -11,4 +15,10 @@ urlpatterns = [
 	path('<int:pk>/eliminar/', EmpleadoDeleteView.as_view(), name='empleado-delete'),
 	path('sucursales/', SucursalListView.as_view(), name='sucursal-list'),
 	path('cargos/', CargoListView.as_view(), name='cargo-list'),
+    path('sucursales/nuevo/', SucursalCreateView.as_view(), name='sucursal-create'),
+    path('sucursales/<int:pk>/editar/', SucursalUpdateView.as_view(), name='sucursal-update'),
+    path('sucursales/<int:pk>/eliminar/', SucursalDeleteView.as_view(), name='sucursal-delete'),
+    path('cargos/nuevo/', CargoCreateView.as_view(), name='cargo-create'),
+    path('cargos/<int:pk>/editar/', CargoUpdateView.as_view(), name='cargo-update'),
+	path('cargos/<int:pk>/eliminar/', CargoDeleteView.as_view(), name='cargo-delete'),
 ]

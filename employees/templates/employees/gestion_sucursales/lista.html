@@ -8,7 +8,7 @@
         <h3 class="card-title"><i class="fas fa-map-marker-alt"></i> Gestión de Sucursales</h3>
         {% if user.is_staff %}
         <div class="card-tools">
-            <a href="#" class="btn btn-primary">
+            <a href="{% url 'employees:sucursal-create' %}" class="btn btn-primary">
                 <i class="fas fa-plus"></i> Nueva Sucursal
             </a>
         </div>
@@ -42,10 +42,10 @@
                         {% if user.is_staff %}
                         <td>
                             <div class="btn-group" role="group">
-                                <a href="#" class="btn btn-warning btn-sm" title="Editar">
+                                <a href="{% url 'employees:sucursal-update' sucursal.pk %}" class="btn btn-warning btn-sm" title="Editar">
                                     <i class="fas fa-edit"></i>
                                 </a>
-                                <a href="#" class="btn btn-danger btn-sm" title="Eliminar">
+                                <a href="{% url 'employees:sucursal-delete' sucursal.pk %}" class="btn btn-danger btn-sm" title="Eliminar">
                                     <i class="fas fa-trash"></i>
                                 </a>
                             </div>

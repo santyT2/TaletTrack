@@ -1,0 +1,73 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{% if form.instance.pk %}Editar Cargo{% else %}Crear Cargo{% endif %}{% endblock %}
+
+{% block content %}
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">{% if form.instance.pk %}Editar Cargo{% else %}Crear Nuevo Cargo{% endif %}</h3>
+                </div>
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            <ul class="mb-0">
+                                {% for error in form.non_field_errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.nombre.id_for_label }}">Nombre</label>
+                                    {{ form.nombre }}
+                                    {% if form.nombre.errors %}
+                                        <div class="text-danger">{{ form.nombre.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.nivel_requerido.id_for_label }}">Nivel Requerido</label>
+                                    {{ form.nivel_requerido }}
+                                    {% if form.nivel_requerido.errors %}
+                                        <div class="text-danger">{{ form.nivel_requerido.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.salario_base.id_for_label }}">Salario Base</label>
+                                    {{ form.salario_base }}
+                                    {% if form.salario_base.errors %}
+                                        <div class="text-danger">{{ form.salario_base.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="form-group">
+                                    <label for="{{ form.descripcion.id_for_label }}">Descripción</label>
+                                    {{ form.descripcion }}
+                                    {% if form.descripcion.errors %}
+                                        <div class="text-danger">{{ form.descripcion.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button type="submit" class="btn btn-primary">{% if form.instance.pk %}Actualizar{% else %}Crear{% endif %}</button>
+                        <a href="{% url 'employees:cargo-list' %}" class="btn btn-secondary">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endblock %}

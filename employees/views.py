@@ -5,7 +5,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
 from django.shortcuts import redirect
 from .models import Empleado, Sucursal, Cargo
-from .forms import EmpleadoForm
+from .forms import EmpleadoForm, SucursalForm, CargoForm
 
 
 class StaffRequiredMixin(UserPassesTestMixin):
@@ -16,21 +16,21 @@ class StaffRequiredMixin(UserPassesTestMixin):
 
 class EmpleadoListView(LoginRequiredMixin, ListView):
     model = Empleado
-    template_name = 'employees/lista.html'
+    template_name = 'employees/gestion_empleados/lista.html'
     context_object_name = 'empleados'
     paginate_by = 10
 
 
 class EmpleadoDetailView(LoginRequiredMixin, DetailView):
     model = Empleado
-    template_name = 'employees/detalle.html'
+    template_name = 'employees/gestion_empleados/detalle.html'
     context_object_name = 'empleado'
 
 
 class EmpleadoCreateView(LoginRequiredMixin, StaffRequiredMixin, SuccessMessageMixin, CreateView):
     model = Empleado
     form_class = EmpleadoForm
-    template_name = 'employees/formulario.html'
+    template_name = 'employees/gestion_empleados/form.html'
     success_url = reverse_lazy('employees:empleado-list')
     success_message = 'Empleado "%(nombres)s %(apellidos)s" creado exitosamente.'
 
@@ -48,13 +48,14 @@ class EmpleadoCreateView(LoginRequiredMixin, StaffRequiredMixin, SuccessMessageM
 class EmpleadoUpdateView(LoginRequiredMixin, StaffRequiredMixin, SuccessMessageMixin, UpdateView):
     model = Empleado
     form_class = EmpleadoForm
-    template_name = 'employees/formulario.html'
+    template_name = 'employees/gestion_empleados/form.html'
     success_url = reverse_lazy('employees:empleado-list')
     success_message = 'Empleado "%(nombres)s %(apellidos)s" actualizado exitosamente.'
 
 
 class EmpleadoDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
     model = Empleado
+    template_name = 'employees/gestion_empleados/delete.html'
     success_url = reverse_lazy('employees:empleado-list')
 
     def delete(self, request, *args, **kwargs):
@@ -64,14 +65,65 @@ class EmpleadoDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
 
 class SucursalListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
     model = Sucursal
-    template_name = 'employees/sucursal_list.html'
+    template_name = 'employees/gestion_sucursales/lista.html'
     context_object_name = 'sucursales'
     paginate_by = 10
 
 
 class CargoListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
     model = Cargo
-    template_name = 'employees/cargo_list.html'
+    template_name = 'employees/gestion_cargos/lista.html'
     context_object_name = 'cargos'
     paginate_by = 10
 
+
+class SucursalCreateView(LoginRequiredMixin, StaffRequiredMixin, SuccessMessageMixin, CreateView):
+    model = Sucursal
+    form_class = SucursalForm
+    template_name = 'employees/gestion_sucursales/form.html'
+    success_url = reverse_lazy('employees:sucursal-list')
+    success_message = 'Sucursal "%(nombre)s" creada exitosamente.'
+
+
+class SucursalUpdateView(LoginRequiredMixin, StaffRequiredMixin, SuccessMessageMixin, UpdateView):
+    model = Sucursal
+    form_class = SucursalForm
+    template_name = 'employees/gestion_sucursales/form.html'
+    success_url = reverse_lazy('employees:sucursal-list')
+    success_message = 'Sucursal "%(nombre)s" actualizada exitosamente.'
+
+
+class SucursalDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
+    model = Sucursal
+    template_name = 'employees/gestion_sucursales/delete.html'
+    success_url = reverse_lazy('employees:sucursal-list')
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(request, f'Sucursal "{self.get_object().nombre}" eliminada exitosamente.')
+        return super().delete(request, *args, **kwargs)
+
+
+class CargoCreateView(LoginRequiredMixin, StaffRequiredMixin, SuccessMessageMixin, CreateView):
+    model = Cargo
+    form_class = CargoForm
+    template_name = 'employees/gestion_cargos/form.html'
+    success_url = reverse_lazy('employees:cargo-list')
+    success_message = 'Cargo "%(nombre)s" creado exitosamente.'
+
+
+class CargoUpdateView(LoginRequiredMixin, StaffRequiredMixin, SuccessMessageMixin, UpdateView):
+    model = Cargo
+    form_class = CargoForm
+    template_name = 'employees/gestion_cargos/form.html'
+    success_url = reverse_lazy('employees:cargo-list')
+    success_message = 'Cargo "%(nombre)s" actualizado exitosamente.'
+
+
+class CargoDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
+    model = Cargo
+    template_name = 'employees/gestion_cargos/delete.html'
+    success_url = reverse_lazy('employees:cargo-list')
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(request, f'Cargo "{self.get_object().nombre}" eliminado exitosamente.')
+        return super().delete(request, *args, **kwargs)
