@@ -45,7 +45,7 @@ class JornadaCalculadaSerializer(serializers.ModelSerializer):
 class RegistroAsistenciaSerializer(serializers.ModelSerializer):
     empleado_nombre = serializers.CharField(source='empleado.nombre_completo', read_only=True)
     sucursal = serializers.CharField(source='empleado.sucursal.nombre', read_only=True)
-    cargo = serializers.CharField(source='empleado.puesto.nombre', read_only=True)
+    cargo = serializers.CharField(source='empleado.cargo.nombre', read_only=True)
 
     class Meta:
         model = RegistroAsistencia

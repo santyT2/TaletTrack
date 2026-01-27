@@ -92,6 +92,8 @@ class EmpleadoSerializer(serializers.ModelSerializer):
 class ContratoSerializer(serializers.ModelSerializer):
     empleado_nombre = serializers.CharField(source='empleado.nombre_completo', read_only=True)
     dias_restantes = serializers.SerializerMethodField()
+    turno_nombre = serializers.CharField(source='contrato_turno.nombre', read_only=True)
+    turno_horario = serializers.SerializerMethodField()
 
     class Meta:
         model = Contrato
@@ -101,6 +103,11 @@ class ContratoSerializer(serializers.ModelSerializer):
         if obj.fecha_fin and obj.estado == 'activo':
             delta = obj.fecha_fin - timezone.now().date()
             return delta.days
+        return None
+
+    def get_turno_horario(self, obj):
+        if obj.contrato_turno:
+            return f"{obj.contrato_turno.hora_inicio} - {obj.contrato_turno.hora_fin}"
         return None
 
 

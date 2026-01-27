@@ -1,159 +1,124 @@
-import { useState, useEffect } from 'react';
-import hrService, { type Contract } from '../../../services/hrService';
-import { FileText, AlertTriangle, Download, Calendar, DollarSign, CheckCircle, XCircle } from 'lucide-react';
-import { format, differenceInDays, parseISO } from 'date-fns';
+import { useMemo, useState } from 'react';
+import { AlertTriangle, Calendar, CheckCircle2, FileText, Filter, XCircle } from 'lucide-react';
+import { format, parseISO, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 
+type Row = {
+    id: number;
+    empleado: string;
+    tipo: string;
+    inicio: string;
+    fin: string | null;
+    salario: number;
+    estado: 'activo' | 'inactivo';
+};
+
+const MOCK_ROWS: Row[] = [
+    { id: 1, empleado: 'María Gómez', tipo: 'Indefinido', inicio: '2024-06-01', fin: '2025-05-31', salario: 1500, estado: 'activo' },
+    { id: 2, empleado: 'Luis Pérez', tipo: 'Plazo fijo', inicio: '2024-11-01', fin: '2025-02-15', salario: 1200, estado: 'activo' },
+    { id: 3, empleado: 'Ana Ruiz', tipo: 'Indefinido', inicio: '2023-01-10', fin: null, salario: 1800, estado: 'activo' },
+];
+
+type FilterOption = 'todos' | 'vencidos' | 'por_vencer' | 'activos';
+
 export default function ContractsPage() {
-    const [contracts, setContracts] = useState<Contract[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [filter, setFilter] = useState<FilterOption>('todos');
 
-    // Mock employee ID for demo purposes - in real app would come from auth context or route param
-    const DEMO_EMPLOYEE_ID = 1; 
+    const filtered = useMemo(() => {
+        const today = new Date();
+        return MOCK_ROWS.filter((row) => {
+            if (filter === 'activos') return row.estado === 'activo';
+            if (filter === 'vencidos') return row.fin !== null && differenceInDays(parseISO(row.fin), today) < 0;
+            if (filter === 'por_vencer') return row.fin !== null && differenceInDays(parseISO(row.fin), today) >= 0 && differenceInDays(parseISO(row.fin), today) <= 30;
+            return true;
+        });
+    }, [filter]);
 
-    useEffect(() => {
-        loadContracts();
-    }, []);
-
-    const loadContracts = async () => {
-        try {
-            setLoading(true);
-            // In a real scenario, we might list all contracts or filter by user
-            // Here we try to fetch for a specific employee as per service definition, 
-            // or we could adjust the service to fetch all if no ID provided.
-            // For now, let's assume we want to see contracts for the current view context
-            const data = await hrService.getContracts(DEMO_EMPLOYEE_ID); 
-            setContracts(data);
-        } catch (err) {
-            console.error(err);
-            // If API fails (e.g. 404 because employee doesn't exist), we handle it gracefully
-            setError('No se pudieron cargar los contratos.');
-            // Mock data for UI demonstration if backend is empty/failing
-            // setContracts(MOCK_CONTRACTS); 
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const isExpiringSoon = (endDate?: string | null) => {
-        if (!endDate) return false;
-        const days = differenceInDays(parseISO(endDate), new Date());
-        return days >= 0 && days <= 30;
-    };
-
-    const isExpired = (endDate?: string | null) => {
-        if (!endDate) return false;
-        return differenceInDays(parseISO(endDate), new Date()) < 0;
+    const badge = (fin: string | null) => {
+        if (!fin) return null;
+        const days = differenceInDays(parseISO(fin), new Date());
+        if (days < 0) return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-rose-100 text-rose-700">Vencido</span>;
+        if (days <= 30) return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-700">Vence pronto</span>;
+        return null;
     };
 
     return (
-        <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
-            <header>
-                <h1 className="text-2xl font-bold text-gray-900">Historial de Contratos</h1>
-                <p className="text-gray-500">Documentación legal y acuerdos laborales.</p>
-            </header>
-
-            {error && (
-                <div className="bg-red-50 text-red-700 p-4 rounded-lg border border-red-200 flex items-center gap-2">
-                    <AlertTriangle size={20} />
-                    {error}
+        <div className="space-y-6">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                    <p className="text-xs uppercase text-slate-500">Talento · Legal</p>
+                    <h1 className="text-2xl font-bold text-slate-900">Contratos y vencimientos</h1>
+                    <p className="text-slate-600">Monitor de riesgos y documentación laboral.</p>
                 </div>
-            )}
+                <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-2 shadow-sm">
+                    <Filter className="w-4 h-4 text-slate-500" />
+                    {(['todos', 'por_vencer', 'vencidos', 'activos'] as FilterOption[]).map((opt) => (
+                        <button
+                            key={opt}
+                            onClick={() => setFilter(opt)}
+                            className={`text-sm font-semibold px-2 py-1 rounded ${filter === opt ? 'bg-indigo-100 text-indigo-700' : 'text-slate-600'}`}
+                        >
+                            {opt === 'todos' && 'Todos'}
+                            {opt === 'por_vencer' && 'Por vencer'}
+                            {opt === 'vencidos' && 'Vencidos'}
+                            {opt === 'activos' && 'Activos'}
+                        </button>
+                    ))}
+                </div>
+            </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-slate-800 font-semibold text-sm">
+                        <FileText className="w-4 h-4" /> Vista global de contratos
+                    </div>
+                    <p className="text-xs text-slate-500">{filtered.length} registros</p>
+                </div>
                 <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                    <table className="min-w-full text-sm">
+                        <thead className="bg-slate-50 text-slate-600">
                             <tr>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo de Contrato</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vigencia</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salario</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Documento</th>
+                                <th className="px-4 py-3 text-left">Empleado</th>
+                                <th className="px-4 py-3 text-left">Tipo</th>
+                                <th className="px-4 py-3 text-left">Inicio</th>
+                                <th className="px-4 py-3 text-left">Fin</th>
+                                <th className="px-4 py-3 text-left">Salario</th>
+                                <th className="px-4 py-3 text-left">Estado</th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {loading ? (
+                        <tbody className="divide-y divide-slate-100">
+                            {filtered.map((row) => {
+                                const fin = row.fin ? format(parseISO(row.fin), 'dd MMM yyyy', { locale: es }) : 'Indefinido';
+                                const inicio = format(parseISO(row.inicio), 'dd MMM yyyy', { locale: es });
+                                const isExpired = row.fin ? differenceInDays(parseISO(row.fin), new Date()) < 0 : false;
+                                return (
+                                    <tr key={row.id} className={row.fin && differenceInDays(parseISO(row.fin), new Date()) <= 30 ? 'bg-amber-50/60' : ''}>
+                                        <td className="px-4 py-3 font-semibold text-slate-900">{row.empleado}</td>
+                                        <td className="px-4 py-3 capitalize">{row.tipo}</td>
+                                        <td className="px-4 py-3">{inicio}</td>
+                                        <td className="px-4 py-3 flex items-center gap-2">{fin} {badge(row.fin)}</td>
+                                        <td className="px-4 py-3">${row.salario.toLocaleString('es-CL')}</td>
+                                        <td className="px-4 py-3">
+                                            {row.estado === 'activo' && !isExpired ? (
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+                                                    <CheckCircle2 className="w-4 h-4" /> Activo
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                                                    <XCircle className="w-4 h-4" /> Inactivo
+                                                </span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                            {filtered.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">Cargando contratos...</td>
+                                    <td colSpan={6} className="px-4 py-10 text-center text-slate-500">
+                                        <AlertTriangle className="w-5 h-5 inline mr-2 text-amber-500" />
+                                        No hay contratos para el filtro seleccionado.
+                                    </td>
                                 </tr>
-                            ) : contracts.length === 0 ? (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">No hay contratos registrados.</td>
-                                </tr>
-                            ) : (
-                                contracts.map((contract) => {
-                                    const expiring = isExpiringSoon(contract.end_date);
-                                    const expired = isExpired(contract.end_date);
-                                    
-                                    return (
-                                        <tr key={contract.id} className={`transition-colors ${expiring ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'}`}>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center">
-                                                    <div className={`flex-shrink-0 h-10 w-10 rounded-lg flex items-center justify-center ${expiring ? 'bg-red-100 text-red-600' : 'bg-indigo-50 text-indigo-600'}`}>
-                                                        <FileText size={20} />
-                                                    </div>
-                                                    <div className="ml-4">
-                                                        <div className="text-sm font-medium text-gray-900 capitalize">
-                                                            {contract.contract_type.replace('_', ' ')}
-                                                        </div>
-                                                        <div className="text-xs text-gray-500">ID: {contract.id}</div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex flex-col text-sm">
-                                                    <div className="flex items-center gap-1 text-gray-900">
-                                                        <Calendar size={14} className="text-gray-400" />
-                                                        {format(parseISO(contract.start_date), 'dd MMM yyyy', { locale: es })}
-                                                    </div>
-                                                    <div className="flex items-center gap-1 text-gray-500 mt-1">
-                                                        <span className="text-gray-400">Hasta:</span>
-                                                        {contract.end_date ? (
-                                                            <span className={expiring ? 'text-red-600 font-bold' : ''}>
-                                                                {format(parseISO(contract.end_date), 'dd MMM yyyy', { locale: es })}
-                                                            </span>
-                                                        ) : (
-                                                            <span className="text-green-600 font-medium">Indefinido</span>
-                                                        )}
-                                                    </div>
-                                                    {expiring && (
-                                                        <span className="text-xs text-red-600 font-bold flex items-center gap-1 mt-1">
-                                                            <AlertTriangle size={10} /> Vence pronto
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="flex items-center text-sm text-gray-900 font-medium">
-                                                    <DollarSign size={14} className="text-gray-400 mr-1" />
-                                                    {Number(contract.salary).toLocaleString('es-CO')}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                {contract.is_active && !expired ? (
-                                                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 flex items-center w-fit gap-1">
-                                                        <CheckCircle size={12}/> Activo
-                                                    </span>
-                                                ) : (
-                                                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800 flex items-center w-fit gap-1">
-                                                        <XCircle size={12}/> Inactivo
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                {contract.document ? (
-                                                    <a href={contract.document} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-900 flex items-center gap-1">
-                                                        <Download size={16} /> Descargar
-                                                    </a>
-                                                ) : (
-                                                    <span className="text-gray-400 italic text-xs">Sin adjunto</span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    );
-                                })
                             )}
                         </tbody>
                     </table>

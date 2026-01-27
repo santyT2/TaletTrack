@@ -31,6 +31,7 @@ from .views import (
     SaldoVacacionesViewSet,
     KPIViewSet,
     ResultadoKPIViewSet,
+    EmployeePortalViewSet,
     # Legacy
     CargoViewSet,
     ContractViewSet,
@@ -59,6 +60,7 @@ router.register(r'solicitudes-ausencia', SolicitudAusenciaViewSet, basename='api
 router.register(r'saldos-vacaciones', SaldoVacacionesViewSet, basename='api-saldos-vacaciones')
 router.register(r'kpis', KPIViewSet, basename='api-kpis')
 router.register(r'resultados-kpi', ResultadoKPIViewSet, basename='api-resultados-kpi')
+router.register(r'portal', EmployeePortalViewSet, basename='api-portal')
 
 # Legacy endpoints
 router.register(r'cargos', CargoViewSet, basename='api-cargos')

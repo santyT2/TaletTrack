@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from django.core.validators import RegexValidator
 from core.models import TimeStampedModel, Empresa
 
@@ -17,8 +18,12 @@ class Sucursal(TimeStampedModel):
     padre = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='subunidades')
     ubicacion = models.TextField(blank=True, null=True)
     direccion = models.CharField(max_length=255, blank=True, null=True)
+    direccion_exacta = models.CharField(max_length=255, blank=True, null=True)
     ciudad = models.CharField(max_length=100, blank=True, null=True)
     telefono = models.CharField(max_length=20, blank=True, null=True)
+    telefono_fijo = models.CharField(max_length=20, blank=True, null=True)
+    capacidad_maxima = models.PositiveIntegerField(default=0, help_text="Capacidad máxima de personal en la sucursal")
+    gerente_encargado = models.ForeignKey('Empleado', on_delete=models.SET_NULL, null=True, blank=True, related_name='sucursales_a_cargo')
     estado = models.CharField(max_length=15, choices=[('activo', 'Activo'), ('inactivo', 'Inactivo')], default='activo')
 
     class Meta:
@@ -46,7 +51,12 @@ class Cargo(models.Model):
     descripcion = models.TextField(blank=True, null=True)
     unidad = models.ForeignKey(Sucursal, on_delete=models.PROTECT, related_name='puestos', null=True, blank=True)
     nivel = models.CharField(max_length=50, choices=NIVEL_CHOICES, default='junior')
+    departamento = models.CharField(max_length=80, default='RRHH')
     salario_base = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    salario_minimo = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    salario_maximo = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    responsabilidades = models.TextField(blank=True, null=True)
+    beneficios = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -74,6 +84,7 @@ class Empleado(TimeStampedModel):
     nombres = models.CharField(max_length=100)
     apellidos = models.CharField(max_length=100)
     documento = models.CharField(max_length=30, unique=True, null=True, blank=True)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='empleado')
     email = models.EmailField(unique=True)
     telefono = models.CharField(max_length=20, validators=[RegexValidator(regex=r'^\+?[\d\s\-\(\)]{7,}$', message='Teléfono inválido')])
     direccion = models.CharField(max_length=255, blank=True, null=True)
@@ -129,6 +140,9 @@ class Contrato(TimeStampedModel):
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField(null=True, blank=True)
     salario_base = models.DecimalField(max_digits=12, decimal_places=2)
+    salary = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Salario mensual acordado")
+    contrato_turno = models.ForeignKey('attendance.Turno', on_delete=models.SET_NULL, null=True, blank=True, related_name='contratos')
+    beneficios = models.JSONField(null=True, blank=True, help_text="Beneficios adicionales, en JSON o lista")
     jornada_semanal_horas = models.PositiveIntegerField(default=40)
     estado = models.CharField(max_length=15, choices=ESTADO_CHOICES, default='activo')
 
@@ -298,6 +312,7 @@ class OnboardingTask(models.Model):
     """Modelo legado conservado para onboarding simple."""
     employee = models.ForeignKey(Empleado, on_delete=models.CASCADE, related_name='onboarding_tasks')
     title = models.CharField(max_length=200)
+    description = models.TextField(blank=True, default="")
     is_completed = models.BooleanField(default=False)
     due_date = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

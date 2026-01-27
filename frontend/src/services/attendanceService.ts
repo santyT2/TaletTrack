@@ -11,8 +11,8 @@ export interface RegistroAsistencia {
   cargo?: string;
   fecha_hora: string;
   tipo: 'ENTRADA' | 'SALIDA';
-  latitud?: number;
-  longitud?: number;
+  latitud?: number | null;
+  longitud?: number | null;
   es_tardanza: boolean;
   minutos_atraso: number;
 }
@@ -78,9 +78,15 @@ const attendanceService = {
     fecha_inicio?: string;
     fecha_fin?: string;
     tipo?: 'ENTRADA' | 'SALIDA';
+    hoy?: boolean;
   }): Promise<RegistroAsistencia[]> {
     const response = await axios.get<RegistroAsistencia[]>(`${API_URL}/registros/`, { params });
     return response.data;
+  },
+
+  async listarHoy(): Promise<RegistroAsistencia[]> {
+    const hoy = new Date().toISOString().slice(0, 10);
+    return this.listar({ fecha_inicio: hoy, fecha_fin: hoy });
   }
 };
 

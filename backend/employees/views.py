@@ -4,11 +4,13 @@
 # Sin render(), TemplateView, ListView - SOLO JSON
 # ========================================================
 
-from rest_framework import viewsets, filters
+from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
+from django.utils import timezone
+from datetime import time, datetime
 
 from core.models import Empresa
 from .models import (
@@ -16,6 +18,7 @@ from .models import (
     TipoAusencia, SolicitudAusencia, SaldoVacaciones, KPI, ResultadoKPI,
     Cargo, Contract, LeaveRequest, OnboardingTask,
 )
+from attendance.models import RegistroAsistencia, Turno
 from .serializers import (
     EmpresaSerializer, SucursalSerializer, EmpleadoSerializer,
     ContratoSerializer, DocumentoEmpleadoSerializer,
@@ -165,6 +168,176 @@ class ResultadoKPIViewSet(viewsets.ModelViewSet):
     filterset_fields = ['empleado', 'kpi', 'periodo']
     ordering_fields = ['periodo', 'created_at']
     ordering = ['-periodo']
+
+
+class EmployeePortalViewSet(viewsets.ViewSet):
+    """Endpoints del portal del empleado (autenticado)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def _get_empleado(self, request):
+        user = request.user
+        if hasattr(user, "empleado") and user.empleado:
+            return user.empleado
+        # fallback por correo/username
+        emp = Empleado.objects.filter(email=user.email).first()
+        if emp:
+            return emp
+        return Empleado.objects.filter(email=user.username).first()
+
+    @action(detail=False, methods=["get"], url_path="me")
+    def me(self, request):
+        emp = self._get_empleado(request)
+        if not emp:
+            return Response({"detail": "No se encontró empleado vinculado."}, status=status.HTTP_404_NOT_FOUND)
+
+        contrato = emp.contratos.filter(estado='activo').order_by('-fecha_inicio').first()
+        turno = contrato.contrato_turno if contrato and contrato.contrato_turno else Turno.objects.filter(empresa=emp.empresa).first()
+        data = {
+            "id": emp.id,
+            "nombre": emp.nombre_completo,
+            "documento": emp.documento,
+            "email": emp.email,
+            "cargo": emp.cargo.nombre if emp.cargo else None,
+            "sucursal": emp.sucursal.nombre if emp.sucursal else None,
+            "foto_url": emp.foto_url.url if emp.foto_url else None,
+            "contrato": (
+                {
+                    "id": contrato.id,
+                    "tipo": contrato.tipo,
+                    "estado": contrato.estado,
+                    "fecha_inicio": contrato.fecha_inicio,
+                    "fecha_fin": contrato.fecha_fin,
+                    "salary": float(contrato.salary or contrato.salario_base),
+                    "salario_base": float(contrato.salario_base),
+                    "beneficios": contrato.beneficios,
+                }
+                if contrato
+                else None
+            ),
+            "turno": (
+                {
+                    "id": turno.id,
+                    "nombre": turno.nombre,
+                    "hora_inicio": turno.hora_inicio,
+                    "hora_fin": turno.hora_fin,
+                    "dias_semana": turno.dias_semana,
+                }
+                if turno
+                else None
+            ),
+        }
+        return Response(data)
+
+    @action(detail=False, methods=["get"], url_path="dashboard-stats")
+    def dashboard_stats(self, request):
+        emp = self._get_empleado(request)
+        if not emp:
+            return Response({"detail": "No se encontró empleado vinculado."}, status=status.HTTP_404_NOT_FOUND)
+
+        hoy = timezone.now().date()
+        first_month_day = hoy.replace(day=1)
+        regs_mes = RegistroAsistencia.objects.filter(empleado=emp, fecha_hora__date__gte=first_month_day)
+        dias_con_marca = regs_mes.filter(tipo='ENTRADA').values_list('fecha_hora__date', flat=True).distinct().count()
+        dias_transcurridos = (hoy - first_month_day).days + 1
+        asistencia_pct = round((dias_con_marca / dias_transcurridos) * 100, 2) if dias_transcurridos else 0
+
+        onboarding_qs = OnboardingTask.objects.filter(employee=emp, is_completed=False)
+        onboarding_pendientes = onboarding_qs.count()
+
+        saldo_vac = emp.saldos_vacaciones.order_by('-periodo').first()
+        dias_vac = float(saldo_vac.dias_disponibles) if saldo_vac else 0.0
+
+        # Puntualidad: porcentaje de entradas sin tardanza
+        entradas_mes = regs_mes.filter(tipo='ENTRADA')
+        total_entradas = entradas_mes.count()
+        puntuales = entradas_mes.filter(es_tardanza=False).count()
+        attendance_score = round((puntuales / total_entradas) * 100, 2) if total_entradas else 0
+
+        # Próximo turno: usar turno de contrato activo
+        contrato = emp.contratos.filter(estado='activo').order_by('-fecha_inicio').first()
+        turno = contrato.contrato_turno if contrato and contrato.contrato_turno else None
+        next_shift = None
+        if turno:
+            next_shift = {
+                "nombre": turno.nombre,
+                "hora_inicio": turno.hora_inicio,
+                "hora_fin": turno.hora_fin,
+            }
+
+        pending_tasks = [
+            {
+                "id": t.id,
+                "description": t.description or t.title,
+                "due_date": t.due_date,
+            }
+            for t in onboarding_qs[:10]
+        ]
+
+        data = {
+            "asistencia_mes_pct": asistencia_pct,
+            "attendance_score": attendance_score,
+            "onboarding_pendientes": onboarding_pendientes,
+            "pending_tasks": pending_tasks,
+            "vacaciones_disponibles": dias_vac,
+            "next_shift": next_shift,
+        }
+        return Response(data)
+
+    @action(detail=False, methods=["post"], url_path="mark")
+    def mark(self, request):
+        emp = self._get_empleado(request)
+        if not emp:
+            return Response({"detail": "No se encontró empleado vinculado."}, status=status.HTTP_403_FORBIDDEN)
+
+        tipo = request.data.get('tipo', 'ENTRADA')
+        latitud = request.data.get('latitud')
+        longitud = request.data.get('longitud')
+
+        hoy = timezone.now().date()
+        registros_hoy = RegistroAsistencia.objects.filter(empleado=emp, fecha_hora__date=hoy)
+
+        if tipo == 'ENTRADA' and registros_hoy.filter(tipo='ENTRADA').exists():
+            return Response({"detail": "Ya marcaste entrada hoy."}, status=status.HTTP_400_BAD_REQUEST)
+        if tipo == 'SALIDA':
+            if not registros_hoy.filter(tipo='ENTRADA').exists():
+                return Response({"detail": "Marca entrada antes de salida."}, status=status.HTTP_400_BAD_REQUEST)
+            if registros_hoy.filter(tipo='SALIDA').exists():
+                return Response({"detail": "Ya marcaste salida hoy."}, status=status.HTTP_400_BAD_REQUEST)
+
+        es_tardanza = False
+        minutos_atraso = 0
+        if tipo == 'ENTRADA':
+            hora_limite = time(9, 0)
+            ahora = timezone.localtime().time()
+            if ahora > hora_limite:
+                es_tardanza = True
+                t_lim = datetime.combine(hoy, hora_limite)
+                t_now = datetime.combine(hoy, ahora)
+                minutos_atraso = int((t_now - t_lim).total_seconds() / 60)
+
+        registro = RegistroAsistencia.objects.create(
+            empleado=emp,
+            tipo=tipo,
+            latitud=latitud,
+            longitud=longitud,
+            es_tardanza=es_tardanza,
+            minutos_atraso=minutos_atraso,
+        )
+
+        return Response(
+            {
+                "detail": f"Marcación registrada: {tipo}",
+                "registro": {
+                    "id": registro.id,
+                    "tipo": registro.tipo,
+                    "fecha_hora": registro.fecha_hora,
+                    "es_tardanza": registro.es_tardanza,
+                    "minutos_atraso": registro.minutos_atraso,
+                },
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 # ===== LEGACY VIEWSETS (se mantienen) =====

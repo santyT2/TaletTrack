@@ -4,16 +4,24 @@ import {
     Network, 
     Calendar, 
     FileText, 
-    ClipboardCheck 
+    ClipboardCheck,
+    Users,
+    Clock,
+    DollarSign,
+    BarChart
 } from 'lucide-react';
 
 export default function HRNavigation() {
     const navItems = [
         { path: '/hr/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { path: '/hr/organigram', label: 'Organigrama', icon: Network },
-        { path: '/hr/leaves', label: 'Permisos', icon: Calendar },
+        { path: '/hr/employees', label: 'Empleados', icon: Users },
         { path: '/hr/contracts', label: 'Contratos', icon: FileText },
         { path: '/hr/onboarding', label: 'Onboarding', icon: ClipboardCheck },
+        { path: '/hr/attendance', label: 'Asistencia', icon: Clock },
+        { path: '/hr/leaves', label: 'Permisos', icon: Calendar },
+        { path: '/hr/payroll', label: 'Pre-Nómina', icon: DollarSign },
+        { path: '/hr/reports', label: 'Reportes', icon: BarChart },
+        { path: '/hr/organigram', label: 'Organigrama', icon: Network },
     ];
 
     return (

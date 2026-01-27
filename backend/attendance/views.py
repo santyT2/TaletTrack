@@ -9,7 +9,7 @@ from math import radians, cos, sin, asin, sqrt
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, viewsets, filters
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
 from django.http import HttpResponse
@@ -39,18 +39,21 @@ from employees.models import Empleado
 
 
 class MarcarAsistenciaView(APIView):
-    """
-    API para marcar entrada/salida de empleados.
-    
-    POST /api/attendance/marcar/
-    Body: {
-        "tipo": "ENTRADA" | "SALIDA",
-        "latitud": 4.6097,
-        "longitud": -74.0817,
-        "empleado_id": 1  (opcional, si no se envía marca para el usuario autenticado)
-    }
-    """
-    permission_classes = [AllowAny]  # Cambiar a IsAuthenticated en producción
+    """Marcar check-in/out asociado al usuario autenticado (rol empleado)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def _get_empleado(self, user):
+        if not user:
+            return None
+        if getattr(user, "role", None) == "ADMIN":
+            # Admin no marca asistencia
+            return None
+        if user.email:
+            emp = Empleado.objects.filter(email=user.email).first()
+            if emp:
+                return emp
+        return Empleado.objects.filter(email=user.username).first()
 
     def post(self, request, *args, **kwargs):
         try:
@@ -58,25 +61,9 @@ class MarcarAsistenciaView(APIView):
             tipo = data.get('tipo', 'ENTRADA')
             latitud = data.get('latitud')
             longitud = data.get('longitud')
-            empleado_id = data.get('empleado_id')
-
-            # Obtener el empleado
-            if empleado_id:
-                try:
-                    empleado = Empleado.objects.get(pk=empleado_id)
-                except Empleado.DoesNotExist:
-                    return Response({
-                        'success': False,
-                        'message': 'Empleado no encontrado.'
-                    }, status=status.HTTP_404_NOT_FOUND)
-            else:
-                # Si no hay empleado_id, usar el primer empleado activo (para pruebas)
-                empleado = Empleado.objects.filter(estado='activo').first()
-                if not empleado:
-                    return Response({
-                        'success': False,
-                        'message': 'No hay empleados disponibles.'
-                    }, status=status.HTTP_400_BAD_REQUEST)
+            empleado = self._get_empleado(request.user)
+            if not empleado:
+                return Response({'success': False, 'message': 'No se encontró empleado asociado al usuario.'}, status=status.HTTP_403_FORBIDDEN)
 
             # Verificar si ya marcó entrada/salida hoy
             hoy = timezone.now().date()
@@ -180,38 +167,58 @@ class AsistenciaHoyView(APIView):
 
 
 class RegistroAsistenciaViewSet(viewsets.ModelViewSet):
-    """
-    API ViewSet para gestión de Registros de Asistencia.
-    
-    Endpoints:
-    - GET /api/attendance/registros/     → Listar todos
-    - POST /api/attendance/registros/    → Crear nuevo
-    - GET /api/attendance/registros/{id}/    → Obtener uno
-    - PUT/PATCH /api/attendance/registros/{id}/  → Actualizar
-    - DELETE /api/attendance/registros/{id}/     → Eliminar
-    """
-    queryset = RegistroAsistencia.objects.select_related('empleado').all()
+    """Registros de asistencia con RBAC: admin ve todo, empleado ve sus marcas."""
+
+    queryset = RegistroAsistencia.objects.select_related('empleado').all().order_by('-fecha_hora')
     serializer_class = RegistroAsistenciaSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = ['empleado', 'tipo', 'es_tardanza']
     ordering_fields = ['fecha_hora']
     ordering = ['-fecha_hora']
 
+    def _get_empleado(self):
+        user = self.request.user
+        if not user:
+            return None
+        if getattr(user, "role", None) == "ADMIN":
+            return None
+        if user.email:
+            emp = Empleado.objects.filter(email=user.email).first()
+            if emp:
+                return emp
+        return Empleado.objects.filter(email=user.username).first()
+
     def get_queryset(self):
-        """Filtros adicionales por query params"""
-        queryset = super().get_queryset()
-        
-        # Filtro por rango de fechas
-        fecha_inicio = self.request.query_params.get('fecha_inicio', None)
-        fecha_fin = self.request.query_params.get('fecha_fin', None)
-        
-        if fecha_inicio:
-            queryset = queryset.filter(fecha_hora__date__gte=fecha_inicio)
-        if fecha_fin:
-            queryset = queryset.filter(fecha_hora__date__lte=fecha_fin)
-        
-        return queryset
+        qs = super().get_queryset()
+        user = self.request.user
+
+        # Admin: puede filtrar
+        if user.is_superuser or getattr(user, "role", None) == "ADMIN":
+            fecha_inicio = self.request.query_params.get('fecha_inicio')
+            fecha_fin = self.request.query_params.get('fecha_fin')
+            empleado_id = self.request.query_params.get('empleado')
+            tipo = self.request.query_params.get('tipo')
+            if fecha_inicio:
+                qs = qs.filter(fecha_hora__date__gte=fecha_inicio)
+            if fecha_fin:
+                qs = qs.filter(fecha_hora__date__lte=fecha_fin)
+            if empleado_id:
+                qs = qs.filter(empleado_id=empleado_id)
+            if tipo:
+                qs = qs.filter(tipo=tipo)
+            return qs
+
+        empleado = self._get_empleado()
+        if not empleado:
+            return qs.none()
+        return qs.filter(empleado=empleado)
+
+    def perform_create(self, serializer):
+        empleado = self._get_empleado()
+        if not empleado:
+            raise PermissionError("No se encontró empleado asociado al usuario")
+        serializer.save(empleado=empleado)
 
 
 class TurnoViewSet(viewsets.ModelViewSet):
@@ -227,7 +234,7 @@ class GeocercaViewSet(viewsets.ModelViewSet):
     serializer_class = GeocercaSerializer
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['empresa', 'activo']
+    filterset_fields = ['empresa', 'tipo', 'activo']
 
 
 class ReglaAsistenciaViewSet(viewsets.ModelViewSet):
@@ -235,7 +242,7 @@ class ReglaAsistenciaViewSet(viewsets.ModelViewSet):
     serializer_class = ReglaAsistenciaSerializer
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['empresa', 'geocerca']
+    filterset_fields = ['empresa']
 
 
 def _haversine_distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -250,7 +257,6 @@ def _haversine_distance_m(lat1: float, lon1: float, lat2: float, lon2: float) ->
 
 
 def _point_in_polygon(point_lat: float, point_lng: float, polygon: list) -> bool:
-    """Algoritmo ray casting para polígono plano."""
     num = len(polygon)
     j = num - 1
     inside = False

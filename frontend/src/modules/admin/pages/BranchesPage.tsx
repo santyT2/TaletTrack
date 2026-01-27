@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Search, MapPin, Phone } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, MapPin, Phone, Building2, Users } from 'lucide-react';
 import api from '../../../services/api';
 
 interface Branch {
     id: number;
     nombre: string;
     direccion: string;
+    direccion_exacta?: string;
+    telefono_fijo?: string;
+    capacidad_maxima?: number;
     telefono: string;
     ciudad?: string;
     empresa?: number;
     tipo?: string;
+    gerente_encargado?: number | null;
 }
 
 export default function BranchesPage() {
@@ -21,18 +25,40 @@ export default function BranchesPage() {
     const [editingId, setEditingId] = useState<number | null>(null);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+    const [managerOptions, setManagerOptions] = useState<{ id: number; nombre: string }[]>([]);
+
     const [formData, setFormData] = useState({
         nombre: '',
         direccion: '',
+        direccion_exacta: '',
         telefono: '',
+        telefono_fijo: '',
         ciudad: '',
         empresa: '1',
         tipo: 'sede',
+        capacidad_maxima: '',
+        gerente_encargado: '',
     });
 
     useEffect(() => {
         loadBranches();
+        loadManagers();
     }, []);
+
+    const loadManagers = async () => {
+        try {
+            const response = await api.get('/empleados/');
+            const raw = Array.isArray(response.data?.results)
+                ? response.data.results
+                : Array.isArray(response.data)
+                ? response.data
+                : [];
+            const mapped = raw.map((e: any) => ({ id: e.id, nombre: `${e.nombres || ''} ${e.apellidos || ''}`.trim() }));
+            setManagerOptions(mapped);
+        } catch (err) {
+            console.error(err);
+        }
+    };
 
     const loadBranches = async () => {
         try {
@@ -78,7 +104,7 @@ export default function BranchesPage() {
             
             setIsModalOpen(false);
             setEditingId(null);
-            setFormData({ nombre: '', direccion: '', telefono: '', ciudad: '', empresa: '1', tipo: 'sede' });
+            setFormData({ nombre: '', direccion: '', direccion_exacta: '', telefono: '', telefono_fijo: '', ciudad: '', empresa: '1', tipo: 'sede', capacidad_maxima: '', gerente_encargado: '' });
             loadBranches();
             setTimeout(() => setSuccessMsg(null), 3000);
         } catch (err: any) {
@@ -103,10 +129,14 @@ export default function BranchesPage() {
         setFormData({
             nombre: branch.nombre,
             direccion: branch.direccion,
+            direccion_exacta: branch.direccion_exacta || '',
             telefono: branch.telefono,
+            telefono_fijo: branch.telefono_fijo || '',
             ciudad: branch.ciudad || '',
             empresa: branch.empresa?.toString() || '1',
             tipo: branch.tipo || 'sede',
+            capacidad_maxima: branch.capacidad_maxima?.toString() || '',
+            gerente_encargado: branch.gerente_encargado ? String(branch.gerente_encargado) : '',
         });
         setEditingId(branch.id);
         setIsModalOpen(true);
@@ -122,16 +152,16 @@ export default function BranchesPage() {
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Gestión de Sucursales</h1>
-                    <p className="text-gray-600 mt-1">Total: {branches.length} sucursales</p>
+                    <h1 className="text-3xl font-bold text-slate-900">Gestión de Sucursales</h1>
+                    <p className="text-slate-600 mt-1">Total: {branches.length} sucursales</p>
                 </div>
                 <button
                     onClick={() => {
                         setEditingId(null);
-                        setFormData({ nombre: '', direccion: '', telefono: '', ciudad: '' });
+                        setFormData({ nombre: '', direccion: '', direccion_exacta: '', telefono: '', telefono_fijo: '', ciudad: '', empresa: '1', tipo: 'sede', capacidad_maxima: '', gerente_encargado: '' });
                         setIsModalOpen(true);
                     }}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md transition-colors"
+                    className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md transition-colors"
                 >
                     <Plus className="w-5 h-5" />
                     Nueva Sucursal
@@ -158,14 +188,14 @@ export default function BranchesPage() {
                     placeholder="Buscar por nombre o ciudad..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                 />
             </div>
 
             {/* Grid */}
             {loading ? (
                 <div className="flex justify-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -173,26 +203,32 @@ export default function BranchesPage() {
                         filteredBranches.map((branch) => (
                             <div
                                 key={branch.id}
-                                className="bg-white rounded-lg shadow-md p-5 border-l-4 border-green-500 hover:shadow-lg transition-shadow"
+                                className="bg-white rounded-lg shadow-md p-5 border-l-4 border-brand-600/70 hover:shadow-lg transition-shadow"
                             >
-                                <h3 className="text-lg font-semibold text-gray-900 mb-3">{branch.nombre}</h3>
+                                <h3 className="text-lg font-semibold text-slate-900 mb-3">{branch.nombre}</h3>
                                 
                                 <div className="space-y-2 mb-4">
-                                    <div className="flex items-start gap-2 text-gray-700">
-                                        <MapPin className="w-4 h-4 mt-0.5 text-green-600 flex-shrink-0" />
+                                    <div className="flex items-start gap-2 text-slate-700">
+                                        <MapPin className="w-4 h-4 mt-0.5 text-brand-600 flex-shrink-0" />
                                         <div>
                                             <p className="text-sm">{branch.direccion}</p>
                                             {branch.ciudad && (
-                                                <p className="text-xs text-gray-500">{branch.ciudad}</p>
+                                                <p className="text-xs text-slate-500">{branch.ciudad}</p>
                                             )}
                                         </div>
                                     </div>
                                     {branch.telefono && (
-                                        <div className="flex items-center gap-2 text-gray-700">
-                                            <Phone className="w-4 h-4 text-green-600" />
+                                        <div className="flex items-center gap-2 text-slate-700">
+                                            <Phone className="w-4 h-4 text-brand-600" />
                                             <a href={`tel:${branch.telefono}`} className="text-sm hover:underline">
                                                 {branch.telefono}
                                             </a>
+                                        </div>
+                                    )}
+                                    {branch.gerente_encargado && (
+                                        <div className="flex items-center gap-2 text-slate-700">
+                                            <Users className="w-4 h-4 text-brand-600" />
+                                            <span className="text-sm">Gerente asignado</span>
                                         </div>
                                     )}
                                 </div>
@@ -200,7 +236,7 @@ export default function BranchesPage() {
                                 <div className="flex gap-2 justify-end border-t pt-3">
                                     <button
                                         onClick={() => handleEdit(branch)}
-                                        className="text-blue-600 hover:text-blue-900 transition-colors p-2 hover:bg-blue-50 rounded"
+                                        className="text-brand-700 hover:text-brand-900 transition-colors p-2 hover:bg-brand-50 rounded"
                                     >
                                         <Edit2 className="w-5 h-5" />
                                     </button>
@@ -234,7 +270,7 @@ export default function BranchesPage() {
                                 placeholder="Nombre de la Sucursal *"
                                 value={formData.nombre}
                                 onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500"
                                 required
                             />
                             <input
@@ -242,35 +278,67 @@ export default function BranchesPage() {
                                 placeholder="Dirección"
                                 value={formData.direccion}
                                 onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500"
+                            />
+                            <input
+                                type="text"
+                                placeholder="Dirección exacta"
+                                value={formData.direccion_exacta}
+                                onChange={(e) => setFormData({ ...formData, direccion_exacta: e.target.value })}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500"
                             />
                             <input
                                 type="text"
                                 placeholder="Ciudad"
                                 value={formData.ciudad}
                                 onChange={(e) => setFormData({ ...formData, ciudad: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500"
                             />
                             <input
                                 type="tel"
                                 placeholder="Teléfono"
                                 value={formData.telefono}
                                 onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500"
                             />
+                            <input
+                                type="tel"
+                                placeholder="Teléfono fijo"
+                                value={formData.telefono_fijo}
+                                onChange={(e) => setFormData({ ...formData, telefono_fijo: e.target.value })}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500"
+                            />
+                            <input
+                                type="number"
+                                min="0"
+                                placeholder="Capacidad máxima"
+                                value={formData.capacidad_maxima}
+                                onChange={(e) => setFormData({ ...formData, capacidad_maxima: e.target.value })}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500"
+                            />
+                            <select
+                                value={formData.gerente_encargado}
+                                onChange={(e) => setFormData({ ...formData, gerente_encargado: e.target.value })}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500"
+                            >
+                                <option value="">Gerente encargado (opcional)</option>
+                                {managerOptions.map((m) => (
+                                    <option key={m.id} value={m.id}>{m.nombre || `Empleado ${m.id}`}</option>
+                                ))}
+                            </select>
                             <div className="grid grid-cols-2 gap-3">
                                 <input
                                     type="number"
                                     placeholder="ID Empresa"
                                     value={formData.empresa}
                                     onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
-                                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500"
                                     min="1"
                                 />
                                 <select
                                     value={formData.tipo}
                                     onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
-                                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500"
                                 >
                                     <option value="sede">Sede</option>
                                     <option value="area">Área</option>
@@ -281,13 +349,13 @@ export default function BranchesPage() {
                                 <button
                                     type="button"
                                     onClick={() => setIsModalOpen(false)}
-                                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                                    className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     type="submit"
-                                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                    className="flex-1 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors"
                                 >
                                     {editingId ? 'Actualizar' : 'Crear'}
                                 </button>

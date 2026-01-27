@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Search } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, ListChecks } from 'lucide-react';
 import api from '../../../services/api';
 
 interface Position {
@@ -8,6 +8,11 @@ interface Position {
     descripcion: string;
     nivel_requerido?: string;
     salario_base: string;
+    departamento?: string;
+    salario_minimo?: string;
+    salario_maximo?: string;
+    responsabilidades?: string;
+    beneficios?: string;
 }
 
 export default function PositionsPage() {
@@ -24,6 +29,11 @@ export default function PositionsPage() {
         descripcion: '',
         nivel_requerido: 'junior',
         salario_base: '0',
+        salario_minimo: '0',
+        salario_maximo: '0',
+        departamento: 'RRHH',
+        responsabilidades: '',
+        beneficios: '',
     });
 
     useEffect(() => {
@@ -63,11 +73,25 @@ export default function PositionsPage() {
         }
 
         try {
+            let beneficiosParsed = null;
+            if (formData.beneficios) {
+                try {
+                    beneficiosParsed = JSON.parse(formData.beneficios);
+                } catch (err) {
+                    setError('El campo beneficios debe ser JSON válido');
+                    return;
+                }
+            }
             const payload = {
                 nombre: formData.nombre,
                 descripcion: formData.descripcion,
                 nivel_requerido: formData.nivel_requerido,
                 salario_base: formData.salario_base,
+                salario_minimo: formData.salario_minimo,
+                salario_maximo: formData.salario_maximo,
+                departamento: formData.departamento,
+                responsabilidades: formData.responsabilidades,
+                beneficios: beneficiosParsed,
             };
             if (editingId) {
                 await api.patch(`/cargos/${editingId}/`, payload);
@@ -79,7 +103,7 @@ export default function PositionsPage() {
             
             setIsModalOpen(false);
             setEditingId(null);
-            setFormData({ nombre: '', descripcion: '', nivel_requerido: 'junior', salario_base: '0' });
+            setFormData({ nombre: '', descripcion: '', nivel_requerido: 'junior', salario_base: '0', salario_minimo: '0', salario_maximo: '0', departamento: 'RRHH', responsabilidades: '', beneficios: '' });
             loadPositions();
             setTimeout(() => setSuccessMsg(null), 3000);
         } catch (err: any) {
@@ -106,6 +130,11 @@ export default function PositionsPage() {
             descripcion: position.descripcion,
             nivel_requerido: position.nivel_requerido || 'junior',
             salario_base: position.salario_base?.toString() || '0',
+            salario_minimo: position.salario_minimo?.toString() || '0',
+            salario_maximo: position.salario_maximo?.toString() || '0',
+            departamento: position.departamento || 'RRHH',
+            responsabilidades: position.responsabilidades || '',
+            beneficios: position.beneficios ? JSON.stringify(position.beneficios) : '',
         });
         setEditingId(position.id);
         setIsModalOpen(true);
@@ -120,16 +149,16 @@ export default function PositionsPage() {
             {/* Header */}
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Gestión de Cargos</h1>
-                    <p className="text-gray-600 mt-1">Total: {positions.length} cargos</p>
+                    <h1 className="text-3xl font-bold text-slate-900">Gestión de Cargos</h1>
+                    <p className="text-slate-600 mt-1">Total: {positions.length} cargos</p>
                 </div>
                 <button
                     onClick={() => {
                         setEditingId(null);
-                        setFormData({ nombre: '', descripcion: '', nivel: 'junior' });
+                        setFormData({ nombre: '', descripcion: '', nivel_requerido: 'junior', salario_base: '0', salario_minimo: '0', salario_maximo: '0', departamento: 'RRHH', responsabilidades: '', beneficios: '' });
                         setIsModalOpen(true);
                     }}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md transition-colors"
+                    className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md transition-colors"
                 >
                     <Plus className="w-5 h-5" />
                     Nuevo Cargo
@@ -156,14 +185,14 @@ export default function PositionsPage() {
                     placeholder="Buscar cargos..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                 />
             </div>
 
             {/* Grid */}
             {loading ? (
                 <div className="flex justify-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -171,21 +200,25 @@ export default function PositionsPage() {
                         filteredPositions.map((position) => (
                             <div
                                 key={position.id}
-                                className="bg-white rounded-lg shadow-md p-4 border-l-4 border-blue-500 hover:shadow-lg transition-shadow"
+                                className="bg-white rounded-lg shadow-md p-4 border-l-4 border-brand-600/70 hover:shadow-lg transition-shadow"
                             >
-                                <h3 className="text-lg font-semibold text-gray-900 mb-2">{position.nombre}</h3>
-                                <p className="text-gray-600 text-sm mb-3 line-clamp-2">{position.descripcion}</p>
+                                <h3 className="text-lg font-semibold text-slate-900 mb-2">{position.nombre}</h3>
+                                <p className="text-slate-600 text-sm mb-3 line-clamp-2">{position.descripcion}</p>
                                 {position.nivel_requerido && (
                                     <div className="mb-3">
-                                        <span className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                                        <span className="inline-block bg-brand-50 text-brand-800 text-xs px-2 py-1 rounded">
                                             {position.nivel_requerido}
                                         </span>
                                     </div>
                                 )}
+                                <div className="text-xs text-slate-500 flex items-center gap-1 mb-3">
+                                    <ListChecks className="w-4 h-4 text-brand-600" />
+                                    {position.departamento || '—'} | Rango: {position.salario_minimo || '0'} - {position.salario_maximo || '0'}
+                                </div>
                                 <div className="flex gap-2 justify-end">
                                     <button
                                         onClick={() => handleEdit(position)}
-                                        className="text-blue-600 hover:text-blue-900 transition-colors p-2 hover:bg-blue-50 rounded"
+                                        className="text-brand-700 hover:text-brand-900 transition-colors p-2 hover:bg-brand-50 rounded"
                                     >
                                         <Edit2 className="w-5 h-5" />
                                     </button>
@@ -219,48 +252,95 @@ export default function PositionsPage() {
                                 placeholder="Nombre del Cargo *"
                                 value={formData.nombre}
                                 onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500"
                                 required
                             />
                             <textarea
                                 placeholder="Descripción"
                                 value={formData.descripcion}
                                 onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 resize-none"
                                 rows={3}
                             />
+                            <div className="grid grid-cols-2 gap-3">
+                                <input
+                                    type="number"
+                                    placeholder="Salario mínimo *"
+                                    value={formData.salario_minimo}
+                                    onChange={(e) => setFormData({ ...formData, salario_minimo: e.target.value })}
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500"
+                                    min="0"
+                                    step="0.01"
+                                    required
+                                />
+                                <input
+                                    type="number"
+                                    placeholder="Salario máximo *"
+                                    value={formData.salario_maximo}
+                                    onChange={(e) => setFormData({ ...formData, salario_maximo: e.target.value })}
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500"
+                                    min="0"
+                                    step="0.01"
+                                    required
+                                />
+                            </div>
                             <input
                                 type="number"
                                 placeholder="Salario base *"
                                 value={formData.salario_base}
                                 onChange={(e) => setFormData({ ...formData, salario_base: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500"
                                 min="0"
                                 step="0.01"
                                 required
                             />
                             <select
+                                value={formData.departamento}
+                                onChange={(e) => setFormData({ ...formData, departamento: e.target.value })}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500"
+                            >
+                                <option value="Ventas">Ventas</option>
+                                <option value="IT">IT</option>
+                                <option value="RRHH">RRHH</option>
+                                <option value="Operaciones">Operaciones</option>
+                                <option value="Finanzas">Finanzas</option>
+                            </select>
+                            <select
                                 value={formData.nivel_requerido}
                                 onChange={(e) => setFormData({ ...formData, nivel_requerido: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500"
                             >
                                 <option value="junior">Junior</option>
                                 <option value="semior">Semi-Senior</option>
                                 <option value="senior">Senior</option>
                                 <option value="lider">Líder</option>
                             </select>
+                            <textarea
+                                placeholder="Responsabilidades principales"
+                                value={formData.responsabilidades}
+                                onChange={(e) => setFormData({ ...formData, responsabilidades: e.target.value })}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 resize-none"
+                                rows={3}
+                            />
+                            <textarea
+                                placeholder='Beneficios en JSON, ej: {"seguro": true, "gym": true}'
+                                value={formData.beneficios}
+                                onChange={(e) => setFormData({ ...formData, beneficios: e.target.value })}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500 font-mono text-sm"
+                                rows={2}
+                            />
 
                             <div className="flex gap-3 pt-4">
                                 <button
                                     type="button"
                                     onClick={() => setIsModalOpen(false)}
-                                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                                    className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     type="submit"
-                                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                    className="flex-1 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors"
                                 >
                                     {editingId ? 'Actualizar' : 'Crear'}
                                 </button>

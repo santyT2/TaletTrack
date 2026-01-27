@@ -46,7 +46,11 @@ INSTALLED_APPS = [
     'core',
     'employees',
     'attendance',
+    'leaves',
 ]
+
+# Modelo de usuario personalizado con roles
+AUTH_USER_MODEL = 'core.Usuario'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -170,11 +174,12 @@ CORS_ALLOW_HEADERS = [
 REST_FRAMEWORK = {
     # Permisos globales (cambiar en producción)
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.AllowAny',  # ⚠️ DESARROLLO ONLY
+        'rest_framework.permissions.AllowAny',
     ],
     
     # Autenticación (para producción agregar TokenAuthentication/JWT)
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
     

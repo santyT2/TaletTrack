@@ -66,7 +66,7 @@ export default function EmployeesPage() {
 
     const loadCargos = async () => {
         try {
-            const response = await api.get("/puestos/");
+            const response = await api.get("/cargos/");
             const raw = Array.isArray(response.data?.results)
                 ? response.data.results
                 : Array.isArray(response.data)
@@ -227,7 +227,7 @@ export default function EmployeesPage() {
                         });
                         setIsModalOpen(true);
                     }}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md transition-colors"
+                    className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md transition-colors"
                 >
                     <Plus className="w-5 h-5" />
                     Nuevo Empleado
@@ -252,13 +252,13 @@ export default function EmployeesPage() {
                     placeholder="Buscar por nombre, apellido o email..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-transparent"
                 />
             </div>
 
             {loading ? (
                 <div className="flex justify-center py-12">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600"></div>
                 </div>
             ) : (
                 <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -318,7 +318,7 @@ export default function EmployeesPage() {
                                             <div className="flex gap-2">
                                                 <button
                                                     onClick={() => handleEdit(emp)}
-                                                    className="text-blue-600 hover:text-blue-900 transition-colors"
+                                                    className="text-brand-700 hover:text-brand-900 transition-colors"
                                                     title="Editar"
                                                 >
                                                     <Edit2 className="w-5 h-5" />
@@ -359,7 +359,7 @@ export default function EmployeesPage() {
                                     placeholder="Nombre *"
                                     value={formData.nombres}
                                     onChange={(e) => setFormData({ ...formData, nombres: e.target.value })}
-                                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500"
                                     required
                                 />
                                 <input
@@ -367,7 +367,7 @@ export default function EmployeesPage() {
                                     placeholder="Apellido *"
                                     value={formData.apellidos}
                                     onChange={(e) => setFormData({ ...formData, apellidos: e.target.value })}
-                                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500"
                                     required
                                 />
                             </div>
@@ -376,14 +376,14 @@ export default function EmployeesPage() {
                                 placeholder="Documento (opcional)"
                                 value={formData.documento}
                                 onChange={(e) => setFormData({ ...formData, documento: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500"
                             />
                             <input
                                 type="email"
                                 placeholder="Email *"
                                 value={formData.email}
                                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500"
                                 required
                             />
                             <input
@@ -391,20 +391,20 @@ export default function EmployeesPage() {
                                 placeholder="Teléfono *"
                                 value={formData.telefono}
                                 onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500"
                                 required
                             />
                             <input
                                 type="date"
                                 value={formData.fecha_ingreso}
                                 onChange={(e) => setFormData({ ...formData, fecha_ingreso: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500"
                             />
                             <div className="grid grid-cols-2 gap-4">
                                 <select
                                     value={formData.sucursal}
                                     onChange={(e) => setFormData({ ...formData, sucursal: e.target.value })}
-                                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500"
                                     required
                                 >
                                     <option value="">Selecciona sucursal</option>
@@ -417,7 +417,7 @@ export default function EmployeesPage() {
                                 <select
                                     value={formData.cargo}
                                     onChange={(e) => setFormData({ ...formData, cargo: e.target.value })}
-                                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500"
                                     required
                                 >
                                     <option value="">Selecciona cargo</option>

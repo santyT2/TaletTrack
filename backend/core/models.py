@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import AbstractUser
 
 
 class TimeStampedModel(models.Model):
@@ -43,8 +44,11 @@ class Empresa(TimeStampedModel):
     ]
 
     razon_social = models.CharField(max_length=255)
-    nombre_comercial = models.CharField(max_length=255)
+    nombre_comercial = models.CharField(max_length=255, blank=True, null=True)
     ruc_nit = models.CharField(max_length=30, unique=True)
+    ruc = models.CharField(max_length=20, unique=True, blank=True, null=True)
+    direccion_fiscal = models.CharField(max_length=255, blank=True, null=True)
+    representante_legal = models.CharField(max_length=150, blank=True, null=True)
     pais = models.CharField(max_length=5, choices=PAIS_CHOICES, default="EC")
     moneda = models.CharField(max_length=5, choices=MONEDA_CHOICES, default="USD")
     logo_url = models.ImageField(upload_to="empresas/logos/", null=True, blank=True)
@@ -58,3 +62,24 @@ class Empresa(TimeStampedModel):
 
     def __str__(self) -> str:
         return self.nombre_comercial or self.razon_social
+
+
+class Usuario(AbstractUser):
+    """Usuario de la plataforma con rol básico para RBAC."""
+
+    ROLE_CHOICES = [
+        ("SUPERADMIN", "SuperAdmin"),
+        ("GERENTE_SUCURSAL", "Gerente Sucursal"),
+        ("RRHH", "RRHH"),
+        ("EMPLOYEE", "Colaborador"),
+    ]
+
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="EMPLOYEE")
+    must_change_password = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Usuario"
+        verbose_name_plural = "Usuarios"
+
+    def __str__(self) -> str:
+        return f"{self.username} ({self.role})"
