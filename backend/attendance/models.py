@@ -21,6 +21,24 @@ class Turno(TimeStampedModel):
         return f"{self.nombre} ({self.empresa})"
 
 
+class WorkShift(TimeStampedModel):
+    """Turno operativo para asignar a empleados (HR)."""
+
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name="workshifts")
+    name = models.CharField(max_length=120)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    days = models.JSONField(default=list, help_text="Lista de días laborables 0-6 (lunes=0)")
+
+    class Meta:
+        verbose_name = "WorkShift"
+        verbose_name_plural = "WorkShifts"
+        ordering = ["name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.empresa})"
+
+
 class Geocerca(TimeStampedModel):
     TIPO_CHOICES = [
         ('circulo', 'Círculo'),

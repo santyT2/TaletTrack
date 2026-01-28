@@ -9,6 +9,7 @@ from .models import (
     KPI, ResultadoKPI,
     Cargo, Contract, LeaveRequest, OnboardingTask,
 )
+from attendance.models import Turno
 
 
 class EmpresaSerializer(serializers.ModelSerializer):
@@ -73,6 +74,14 @@ class EmpleadoDetailSerializer(serializers.ModelSerializer):
 
 class EmpleadoSerializer(serializers.ModelSerializer):
     nombre_completo = serializers.ReadOnlyField()
+    full_name = serializers.SerializerMethodField(read_only=True)
+    position_name = serializers.SerializerMethodField(read_only=True)
+    branch_name = serializers.SerializerMethodField(read_only=True)
+    cargo_nombre = serializers.CharField(source='cargo.nombre', read_only=True)
+    sucursal_nombre = serializers.CharField(source='sucursal.nombre', read_only=True)
+    active_contract = serializers.SerializerMethodField(read_only=True)
+    current_shift_name = serializers.CharField(source='current_shift.name', read_only=True, default=None)
+    position_details = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Empleado
@@ -87,6 +96,52 @@ class EmpleadoSerializer(serializers.ModelSerializer):
         if not cargo:
             raise serializers.ValidationError("Debes seleccionar un cargo")
         return attrs
+
+    def get_full_name(self, obj):
+        return obj.nombre_completo
+
+    def get_position_name(self, obj):
+        return obj.cargo.nombre if obj.cargo else None
+
+    def get_branch_name(self, obj):
+        return obj.sucursal.nombre if obj.sucursal else None
+
+    def get_active_contract(self, obj):
+        contract = getattr(obj, "contract", None)
+        if contract:
+            return {
+                "id": contract.id,
+                "contract_type": contract.contract_type,
+                "start_date": contract.start_date,
+                "end_date": contract.end_date,
+                "salary": contract.salary,
+                "schedule_description": contract.schedule_description,
+                "is_active": contract.is_active,
+            }
+        # Fallback: legacy contratos
+        legacy = obj.contratos.filter(estado='activo').first()
+        if legacy:
+            return {
+                "id": legacy.id,
+                "contract_type": legacy.tipo,
+                "start_date": legacy.fecha_inicio,
+                "end_date": legacy.fecha_fin,
+                "salary": legacy.salario_base,
+                "is_active": True,
+                "schedule_description": legacy.contrato_turno.nombre if legacy.contrato_turno else None,
+            }
+        return None
+
+    def get_position_details(self, obj):
+        cargo = obj.cargo
+        if not cargo:
+            return None
+        return {
+            "id": cargo.id,
+            "name": cargo.nombre,
+            "min_salary": cargo.salario_minimo,
+            "max_salary": cargo.salario_maximo,
+        }
 
 
 class ContratoSerializer(serializers.ModelSerializer):
@@ -162,6 +217,96 @@ class ResultadoKPISerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class EmployeePortalSerializer(serializers.ModelSerializer):
+    supervisor_name = serializers.SerializerMethodField()
+    contract_details = serializers.SerializerMethodField()
+    shift_details = serializers.SerializerMethodField()
+    cargo = serializers.SerializerMethodField()
+    sucursal = serializers.SerializerMethodField()
+    cargo_nombre = serializers.CharField(source='cargo.nombre', read_only=True)
+    sucursal_nombre = serializers.CharField(source='sucursal.nombre', read_only=True)
+    nombre = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Empleado
+        fields = [
+            'id',
+            'nombre_completo',
+            'nombre',
+            'documento',
+            'email',
+            'cargo_nombre', 'cargo',
+            'sucursal_nombre', 'sucursal',
+            'foto_url',
+            'supervisor_name',
+            'contract_details',
+            'shift_details',
+        ]
+
+    def get_cargo(self, obj):
+        return obj.cargo.nombre if obj.cargo else None
+
+    def get_sucursal(self, obj):
+        return obj.sucursal.nombre if obj.sucursal else None
+
+    def get_nombre(self, obj):
+        return obj.nombre_completo
+
+    def get_supervisor_name(self, obj):
+        if obj.manager:
+            return obj.manager.nombre_completo
+        suc_manager = getattr(obj.sucursal, 'gerente_encargado', None)
+        if suc_manager and suc_manager != obj:
+            return suc_manager.nombre_completo
+        return None
+
+    def _legacy_contract(self, obj):
+        legacy = obj.contratos.filter(estado='activo').order_by('-fecha_inicio').first()
+        if not legacy:
+            return None
+        return {
+            'id': legacy.id,
+            'type': legacy.tipo,
+            'start_date': legacy.fecha_inicio,
+            'end_date': legacy.fecha_fin,
+            'salary': float(legacy.salary or legacy.salario_base),
+        }
+
+    def get_contract_details(self, obj):
+        contract = getattr(obj, 'contract', None)
+        if contract:
+            return {
+                'id': contract.id,
+                'type': contract.contract_type,
+                'start_date': contract.start_date,
+                'end_date': contract.end_date,
+                'salary': float(contract.salary),
+            }
+        return self._legacy_contract(obj)
+
+    def get_shift_details(self, obj):
+        shift = getattr(obj, 'current_shift', None)
+        if shift:
+            return {
+                'id': shift.id,
+                'name': shift.name,
+                'start_time': shift.start_time,
+                'end_time': shift.end_time,
+                'days': shift.days,
+            }
+        legacy = obj.contratos.filter(estado='activo').order_by('-fecha_inicio').first()
+        if legacy and legacy.contrato_turno:
+            t: Turno = legacy.contrato_turno
+            return {
+                'id': t.id,
+                'name': t.nombre,
+                'start_time': t.hora_inicio,
+                'end_time': t.hora_fin,
+                'days': t.dias_semana,
+            }
+        return None
+
+
 # ===== LEGACY SERIALIZERS (compatibilidad) =====
 
 class CargoSerializer(serializers.ModelSerializer):
@@ -177,12 +322,15 @@ class CargoSerializer(serializers.ModelSerializer):
 
 class ContractSerializer(serializers.ModelSerializer):
     employee_name = serializers.CharField(source='employee.nombre_completo', read_only=True)
+    branch_name = serializers.CharField(source='employee.sucursal.nombre', read_only=True, default=None)
+    position_name = serializers.CharField(source='employee.cargo.nombre', read_only=True, default=None)
     days_until_expiry = serializers.SerializerMethodField()
     is_expiring_soon = serializers.SerializerMethodField()
 
     class Meta:
         model = Contract
         fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at']
 
     def get_days_until_expiry(self, obj):
         if obj.end_date and obj.is_active:
@@ -225,13 +373,19 @@ class OnboardingTaskSerializer(serializers.ModelSerializer):
 
 class OrganigramNodeSerializer(serializers.ModelSerializer):
     nombre_completo = serializers.ReadOnlyField()
+    full_name = serializers.SerializerMethodField(read_only=True)
     cargo_nombre = serializers.CharField(source='cargo.nombre', read_only=True)
+    position_name = serializers.CharField(source='cargo.nombre', read_only=True)
+    branch_name = serializers.CharField(source='sucursal.nombre', read_only=True)
     subordinates = serializers.SerializerMethodField()
 
     class Meta:
         model = Empleado
-        fields = ['id', 'nombre_completo', 'cargo_nombre', 'foto_url', 'email', 'subordinates']
+        fields = ['id', 'nombre_completo', 'full_name', 'cargo_nombre', 'position_name', 'branch_name', 'foto_url', 'email', 'subordinates']
 
     def get_subordinates(self, obj):
         subordinates = obj.subordinados.filter(estado='activo')
         return OrganigramNodeSerializer(subordinates, many=True).data
+
+    def get_full_name(self, obj):
+        return obj.nombre_completo

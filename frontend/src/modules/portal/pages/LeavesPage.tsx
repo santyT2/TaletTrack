@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { CalendarDays, Plus, Clock, CheckCircle2, AlertTriangle } from 'lucide-react';
-import leavesService, { type LeaveRequest } from '../../../services/leavesService';
+import leavesService, { type LeaveRequest } from '../../../core/services/leavesService';
 
 interface FormState {
   start_date: string;

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import hrService, { type EmployeeNode } from '../../../services/hrService';
+import hrService, { type EmployeeNode } from '../../../core/services/hrService';
 import { ZoomIn, ZoomOut, Maximize, AlertCircle } from 'lucide-react';
 
 export default function OrganigramPage() {
@@ -28,8 +28,8 @@ export default function OrganigramPage() {
     function mapToNode(node: any, parentId: number | null): EmployeeNode {
         return {
             id: node.id,
-            name: node.nombre_completo,
-            title: node.puesto_nombre || 'Sin puesto',
+            name: node.full_name || node.nombre_completo,
+            title: node.position_name || node.cargo_nombre || 'Sin puesto',
             parentId,
             img: node.foto_url || null,
             children: (node.subordinates || []).map((child: any) => mapToNode(child, node.id)),

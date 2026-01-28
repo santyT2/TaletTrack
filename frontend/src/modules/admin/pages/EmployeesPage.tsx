@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from "react";
 import { Plus, Edit2, Trash2, Search, MapPin, Briefcase, Upload } from "lucide-react";
-import api from "../../../services/api";
+import api from "../../../core/services/api";
 
 interface Employee {
     id: number;
@@ -9,6 +9,7 @@ interface Employee {
     email: string;
     telefono: string;
     fecha_ingreso: string;
+    documento?: string;
     cargo?: { id: number; nombre: string };
     sucursal?: { id: number; nombre: string };
 }
@@ -98,6 +99,7 @@ export default function EmployeesPage() {
                 email: item.email || "",
                 telefono: item.telefono || "",
                 fecha_ingreso: item.fecha_ingreso || "",
+                documento: item.documento || "",
                 cargo:
                     typeof item.cargo === "object"
                         ? item.cargo
@@ -137,7 +139,7 @@ export default function EmployeesPage() {
             fd.append("apellidos", formData.apellidos);
             fd.append("email", formData.email);
             fd.append("telefono", formData.telefono);
-            if (formData.documento) fd.append("documento", formData.documento);
+            if (formData.documento !== undefined) fd.append("documento", formData.documento);
             fd.append("fecha_ingreso", formData.fecha_ingreso);
             fd.append("cargo", formData.cargo);
             fd.append("sucursal", formData.sucursal);
@@ -190,7 +192,7 @@ export default function EmployeesPage() {
             apellidos: employee.apellidos,
             email: employee.email,
             telefono: employee.telefono,
-            documento: "",
+            documento: employee.documento || "",
             fecha_ingreso: employee.fecha_ingreso,
             cargo: employee.cargo?.id?.toString() || "",
             sucursal: employee.sucursal?.id?.toString() || "",

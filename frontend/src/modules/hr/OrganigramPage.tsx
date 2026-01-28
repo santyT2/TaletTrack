@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import api from '../../services/api';
+import api from '../../core/services/api';
 
 interface EmployeeNode {
     id: number;
@@ -45,7 +45,14 @@ function buildTree(items: any[]): EmployeeNode[] {
 
     for (const item of items) {
         const itemId = item.id;
-        const node: EmployeeNode = { ...item, children: [] };
+        const node: EmployeeNode = {
+            id: item.id,
+            name: item.full_name || item.nombre_completo || item.name,
+            title: item.position_name || item.cargo_nombre || item.title || 'Sin puesto',
+            parentId: item.parentId ?? item.manager_id ?? null,
+            img: item.foto_url || item.img || null,
+            children: [],
+        };
         lookup[itemId] = node;
     }
 
@@ -94,7 +101,7 @@ function TreeNode({ node }: { node: EmployeeNode }) {
                                 right: `calc(${100 / node.children.length / 2}% + 1px)` 
                             }}></div>
                             
-                            {node.children.map((child, index) => (
+                            {node.children.map((child) => (
                                 <div key={child.id} className="flex flex-col items-center relative pt-4">
                                      {/* Vertical line from horizontal bar to child */}
                                     <div className="absolute top-0 w-px h-4 bg-gray-300"></div>

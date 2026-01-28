@@ -20,12 +20,12 @@ class LeaveRequest(TimeStampedModel):
     reason = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="PENDING")
     rejection_reason = models.TextField(blank=True, null=True)
-    approved_by = models.ForeignKey(
+    reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="approved_leaves",
+        related_name="reviewed_leaves",
     )
     approved_at = models.DateTimeField(null=True, blank=True)
 
@@ -47,12 +47,12 @@ class LeaveRequest(TimeStampedModel):
 
     def mark_approved(self, user):
         self.status = "APPROVED"
-        self.approved_by = user
+        self.reviewed_by = user
         self.approved_at = timezone.now()
         self.rejection_reason = ""
 
     def mark_rejected(self, user, reason: str):
         self.status = "REJECTED"
-        self.approved_by = user
+        self.reviewed_by = user
         self.approved_at = timezone.now()
         self.rejection_reason = reason

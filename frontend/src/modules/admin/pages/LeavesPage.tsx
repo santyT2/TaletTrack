@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CalendarDays, CheckCircle2, XCircle, Clock, User, Loader2 } from 'lucide-react';
-import leavesService, { type LeaveRequest } from '../../../services/leavesService';
+import leavesService, { type LeaveRequest } from '../../../core/services/leavesService';
 
 export default function LeavesPage() {
   const today = new Date().toISOString().slice(0, 10);

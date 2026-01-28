@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock3, LogOut, Rocket, CalendarClock, MapPin, CheckCircle2, AlertTriangle, User, TrendingUp, Shield, ListCheck } from 'lucide-react';
-import { useAuth } from '../../../auth/AuthContext';
-import portalService, { type PortalProfile, type PortalStats } from '../../../services/portalService';
-import hrService, { type OnboardingTask } from '../../../services/hrService';
+import { Clock3, LogOut, Rocket, CalendarClock, MapPin, CheckCircle2, User, TrendingUp, Shield, ListCheck } from 'lucide-react';
+import { useAuth } from '../../../core/auth/AuthContext';
+import portalService, { type PortalProfile, type PortalStats } from '../../../core/services/portalService';
+import hrService, { type OnboardingTask } from '../../../core/services/hrService';
 
 export default function PortalDashboardPage() {
   const { user, logout } = useAuth();
@@ -43,8 +43,9 @@ export default function PortalDashboardPage() {
   }, [tasks, stats]);
 
   const turnoLabel = useMemo(() => {
-    if (!profile?.turno) return 'Sin turno asignado';
-    return `${profile.turno.hora_inicio} - ${profile.turno.hora_fin}`;
+    const shift = profile?.shift_details;
+    if (!shift) return 'Sin turno asignado';
+    return `${shift.start_time} - ${shift.end_time}`;
   }, [profile]);
 
   const diasVacaciones = stats?.vacaciones_disponibles ?? 0;
@@ -115,7 +116,7 @@ export default function PortalDashboardPage() {
         <Widget
           title="Mi turno"
           value={turnoLabel}
-          subtitle={profile?.turno ? 'En turno' : 'Asignar turno'}
+          subtitle={profile?.shift_details ? 'En turno' : 'Asignar turno'}
           icon={<Clock3 className="w-5 h-5 text-blue-600" />}
         />
         <Widget

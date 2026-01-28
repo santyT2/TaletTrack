@@ -1,7 +1,7 @@
 import { IdCard, Mail, Phone, ShieldCheck, Briefcase, Clock3, MapPin, AlertTriangle } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useAuth } from '../../../auth/AuthContext';
-import portalService, { type PortalProfile } from '../../../services/portalService';
+import { useAuth } from '../../../core/auth/AuthContext';
+import portalService, { type PortalProfile } from '../../../core/services/portalService';
 
 export default function MyProfilePage() {
   const { user } = useAuth();
@@ -10,13 +10,6 @@ export default function MyProfilePage() {
   const [error, setError] = useState<string | null>(null);
 
   const money = useMemo(() => new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN', maximumFractionDigits: 0 }), []);
-
-  const renderBenefits = (beneficios: unknown): string => {
-    if (!beneficios) return '—';
-    if (Array.isArray(beneficios)) return beneficios.join(', ');
-    if (typeof beneficios === 'object') return Object.values(beneficios as Record<string, unknown>).join(', ');
-    return String(beneficios);
-  };
 
   const renderWeekdays = (dias: number[] | null | undefined): string => {
     if (!dias || dias.length === 0) return '—';
@@ -53,6 +46,7 @@ export default function MyProfilePage() {
         <div className="flex flex-wrap gap-2">
           <Badge icon={<ShieldCheck className="w-4 h-4" />} text="Acceso seguro" />
           {profile?.cargo ? <Badge icon={<Briefcase className="w-4 h-4" />} text={profile.cargo} /> : null}
+          {profile?.supervisor_name ? <Badge icon={<ShieldCheck className="w-4 h-4" />} text={`Jefe: ${profile.supervisor_name}`} /> : null}
         </div>
       </header>
 
@@ -63,17 +57,16 @@ export default function MyProfilePage() {
           <DetailRow label="Teléfono" value={profile?.telefono || '—'} icon={<Phone className="w-4 h-4 text-slate-500" />} />
           <DetailRow label="Sucursal" value={profile?.sucursal || '—'} icon={<MapPin className="w-4 h-4 text-slate-500" />} />
           <DetailRow label="Cargo" value={profile?.cargo || '—'} />
+          <DetailRow label="Jefe directo" value={profile?.supervisor_name || 'Sin supervisor asignado'} />
         </Card>
 
         <Card title="Contrato" icon={<Briefcase className="w-5 h-5 text-slate-600" />}>
-          {profile?.contrato ? (
+          {profile?.contract_details ? (
             <>
-              <DetailRow label="Tipo" value={profile.contrato.tipo} />
-              <DetailRow label="Estado" value={profile.contrato.estado} />
-              <DetailRow label="Inicio" value={profile.contrato.fecha_inicio} />
-              <DetailRow label="Fin" value={profile.contrato.fecha_fin || 'Indefinido'} />
-              <DetailRow label="Salario" value={money.format(profile.contrato.salary || profile.contrato.salario_base)} />
-              <DetailRow label="Beneficios" value={renderBenefits(profile.contrato.beneficios)} />
+              <DetailRow label="Tipo" value={profile.contract_details.type} />
+              <DetailRow label="Inicio" value={profile.contract_details.start_date} />
+              <DetailRow label="Fin" value={profile.contract_details.end_date || 'Indefinido'} />
+              <DetailRow label="Salario" value={money.format(profile.contract_details.salary)} />
             </>
           ) : (
             <div className="flex items-center gap-2 text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-sm">
@@ -84,11 +77,11 @@ export default function MyProfilePage() {
       </div>
 
       <Card title="Turno asignado" icon={<Clock3 className="w-5 h-5 text-slate-600" />}>
-        {profile?.turno ? (
+        {profile?.shift_details ? (
           <>
-            <DetailRow label="Nombre" value={profile.turno.nombre} />
-            <DetailRow label="Horario" value={`${profile.turno.hora_inicio} - ${profile.turno.hora_fin}`} />
-            <DetailRow label="Días" value={renderWeekdays(profile.turno.dias_semana)} />
+            <DetailRow label="Nombre" value={profile.shift_details.name} />
+            <DetailRow label="Horario" value={`${profile.shift_details.start_time} - ${profile.shift_details.end_time}`} />
+            <DetailRow label="Días" value={renderWeekdays(profile.shift_details.days)} />
           </>
         ) : (
           <DetailRow label="Turno" value="Sin turno asignado" />

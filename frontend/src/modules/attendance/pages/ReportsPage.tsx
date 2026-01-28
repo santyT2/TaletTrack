@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Search, Download, Calendar, Filter } from 'lucide-react';
-import attendanceService, { type RegistroAsistencia } from '../../../services/attendanceService';
+import attendanceService, { type RegistroAsistencia } from '../../../core/services/attendanceService';
 
 export default function ReportsPage() {
   const [registros, setRegistros] = useState<RegistroAsistencia[]>([]);

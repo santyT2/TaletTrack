@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { Activity, Users, AlertTriangle, Clock, CheckCircle2, MapPin } from 'lucide-react';
-import leavesService, { type LeaveRequest } from '../../../services/leavesService';
-import attendanceService, { type RegistroAsistencia } from '../../../services/attendanceService';
+import leavesService, { type LeaveRequest } from '../../../core/services/leavesService';
+import attendanceService, { type RegistroAsistencia } from '../../../core/services/attendanceService';
 
 interface ContractAlert {
   empleado: string;

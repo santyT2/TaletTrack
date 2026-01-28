@@ -1,9 +1,21 @@
 import api from './api';
+import axios from 'axios';
+
+const rootApi = axios.create({ baseURL: 'http://localhost:8000/api' });
+rootApi.interceptors.request.use((config) => {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+        config.headers = config.headers ?? {};
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
 
 // --- Interfaces ---
 
 export interface KPIResponse {
     headcount_by_department: { sucursal__nombre: string; count: number }[];
+    headcount_by_branch?: { sucursal__nombre: string; count: number }[];
     retention_rate: number;
     pending_leaves_count: number;
     onboarding_progress: number;
@@ -15,7 +27,97 @@ export interface EmployeeNode {
     title: string;
     parentId: number | null;
     img: string | null;
+    position_name?: string;
+    branch_name?: string;
+    full_name?: string;
     children?: EmployeeNode[];
+}
+
+export interface EmployeeRow {
+    id: number;
+    nombres: string;
+    apellidos: string;
+    nombre_completo: string;
+    email: string;
+    foto_url?: string | null;
+    cargo?: number | null;
+    cargo_nombre?: string | null;
+    sucursal?: number | null;
+    sucursal_nombre?: string | null;
+    estado: string;
+    position_details?: {
+        id: number;
+        name: string;
+        min_salary: number | string;
+        max_salary: number | string;
+    } | null;
+    active_contract?: {
+        id: number;
+        contract_type?: string;
+        start_date?: string | null;
+        end_date?: string | null;
+        salary?: number | string;
+        is_active?: boolean;
+        schedule_description?: string | null;
+    } | null;
+    current_shift?: number | null;
+    current_shift_name?: string | null;
+    telefono?: string | null;
+    direccion?: string | null;
+}
+
+export interface ContractItem {
+    id: number;
+    employee: number;
+    employee_name: string;
+    branch_name?: string | null;
+    position_name?: string | null;
+    contract_type: 'INDEFINIDO' | 'PLAZO_FIJO' | 'SERVICIOS_PRO';
+    start_date: string;
+    end_date: string | null;
+    salary: number | string;
+    schedule_description: string;
+    is_active: boolean;
+    days_until_expiry?: number | null;
+    is_expiring_soon?: boolean;
+}
+
+export interface ContractPayload {
+    employee: number;
+    contract_type: 'INDEFINIDO' | 'PLAZO_FIJO' | 'SERVICIOS_PRO';
+    start_date: string;
+    end_date?: string | null;
+    salary: number;
+    schedule_description?: string;
+    is_active?: boolean;
+}
+
+export interface PayrollPreviewRow {
+    employee_id: number;
+    employee_name: string;
+    branch: string | null;
+    position: string | null;
+    base_salary: number;
+    unexcused_days: number;
+    days_worked: number;
+    estimated_payment: number;
+    contract_id: number;
+    end_date: string | null;
+}
+
+export interface PayrollPreviewResponse {
+    month: number;
+    year: number;
+    results: PayrollPreviewRow[];
+}
+
+export interface WorkShift {
+    id: number;
+    name: string;
+    start_time: string;
+    end_time: string;
+    days: number[];
+    empresa: number;
 }
 
 export interface SolicitudAusencia {
@@ -159,6 +261,28 @@ const hrService = {
             ? response.data
             : [];
         return data.map((e: any) => ({ id: e.id, nombre_completo: e.nombre_completo || `${e.nombres || ''} ${e.apellidos || ''}`.trim() }));
+    },
+
+    /** Listado completo de empleados para HR. */
+    async listEmployees(): Promise<EmployeeRow[]> {
+        const response = await api.get('/empleados/');
+        const data = Array.isArray(response.data?.results)
+            ? response.data.results
+            : Array.isArray(response.data)
+            ? response.data
+            : [];
+        return data as EmployeeRow[];
+    },
+
+    /** Contratos (endpoint global: /api/contracts/) */
+    async listContracts(): Promise<ContractItem[]> {
+        const response = await rootApi.get('/contracts/');
+        const data = Array.isArray(response.data?.results)
+            ? response.data.results
+            : Array.isArray(response.data)
+            ? response.data
+            : [];
+        return data as ContractItem[];
     },
 
     /**
@@ -345,6 +469,36 @@ const hrService = {
             console.error('Error fetching pending leaves:', error);
             throw error;
         }
+    },
+
+    async getPayrollPreview(params: { month?: number; year?: number }): Promise<PayrollPreviewResponse> {
+        const response = await rootApi.get('/hr/payroll-preview/', { params });
+        return response.data as PayrollPreviewResponse;
+    },
+
+    async saveContract(payload: ContractPayload): Promise<ContractItem> {
+        if ((payload as any).id) {
+            const { id, ...rest } = payload as any;
+            const response = await rootApi.patch(`/contracts/${id}/`, rest);
+            return response.data as ContractItem;
+        }
+        const response = await rootApi.post('/contracts/', payload);
+        return response.data as ContractItem;
+    },
+
+    async listWorkShifts(): Promise<WorkShift[]> {
+        const response = await rootApi.get('/shifts/');
+        const data = Array.isArray(response.data?.results)
+            ? response.data.results
+            : Array.isArray(response.data)
+            ? response.data
+            : [];
+        return data as WorkShift[];
+    },
+
+    async assignShift(employeeId: number, shiftId: number | null): Promise<EmployeeRow> {
+        const response = await api.patch(`/empleados/${employeeId}/`, { current_shift: shiftId });
+        return response.data as EmployeeRow;
     }
 };
 

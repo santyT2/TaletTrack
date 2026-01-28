@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { BarChart3, Settings, Home, Clock } from 'lucide-react';
+import { Settings, Home, Clock } from 'lucide-react';
 import { useEffect, useMemo } from 'react';
-import logo from '../../media/talentrack_small.svg';
+import logo from '../../../media/talentrack_small.svg';
 
 export default function MainLayout() {
     const location = useLocation();

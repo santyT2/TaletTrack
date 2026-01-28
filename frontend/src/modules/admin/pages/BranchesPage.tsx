@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Search, MapPin, Phone, Building2, Users } from 'lucide-react';
-import api from '../../../services/api';
+import { Plus, Edit2, Trash2, Search, MapPin, Phone, Users } from 'lucide-react';
+import api from '../../../core/services/api';
 
 interface Branch {
     id: number;

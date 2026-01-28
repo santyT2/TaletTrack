@@ -1,14 +1,11 @@
 import type { ReactNode } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import AdminNavigation from './components/AdminNavigation';
-import { useAuth } from '../../auth/AuthContext';
+import { useAuth } from '../../core/auth/AuthContext';
 
 export default function AdminLayout({ children }: { children?: ReactNode }) {
-    const location = useLocation();
     const navigate = useNavigate();
     const { logout, user } = useAuth();
-    const isActive = (path: string) => location.pathname.startsWith(path);
-
     const handleLogout = () => {
         logout();
         navigate('/login', { replace: true });

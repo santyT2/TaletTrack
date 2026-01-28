@@ -34,7 +34,7 @@ export default function PrenominaPage() {
 
   const exportarExcel = async () => {
     try {
-      const blob = await import('../../../services/attendanceService').then(
+      const blob = await import('../../../core/services/attendanceService').then(
         (module) => module.default.exportarExcel()
       );
       const url = window.URL.createObjectURL(blob);

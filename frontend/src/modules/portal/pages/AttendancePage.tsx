@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Camera, Navigation, Clock, CheckCircle, AlertCircle } from 'lucide-react';
-import attendanceService, { type RegistroAsistencia } from '../../../services/attendanceService';
+import attendanceService, { type RegistroAsistencia } from '../../../core/services/attendanceService';
 
 export default function AttendancePage() {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);

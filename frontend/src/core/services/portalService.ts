@@ -8,22 +8,23 @@ export interface PortalProfile {
   cargo: string | null;
   sucursal: string | null;
   foto_url: string | null;
-  contrato: {
+  supervisor_name: string | null;
+  telefono?: string | null;
+  direccion?: string | null;
+  turno?: string | null;
+  contract_details: {
     id: number;
-    tipo: string;
-    estado: string;
-    fecha_inicio: string;
-    fecha_fin: string | null;
+    type: string;
+    start_date: string;
+    end_date: string | null;
     salary: number;
-    salario_base: number;
-    beneficios: any;
   } | null;
-  turno: {
+  shift_details: {
     id: number;
-    nombre: string;
-    hora_inicio: string;
-    hora_fin: string;
-    dias_semana: number[];
+    name: string;
+    start_time: string;
+    end_time: string;
+    days: number[];
   } | null;
 }
 

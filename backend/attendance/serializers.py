@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     Turno, Geocerca, ReglaAsistencia, EventoAsistencia, JornadaCalculada,
-    RegistroAsistencia,
+    RegistroAsistencia, WorkShift,
 )
 from employees.models import Empleado
 
@@ -9,6 +9,12 @@ from employees.models import Empleado
 class TurnoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Turno
+        fields = '__all__'
+
+
+class WorkShiftSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WorkShift
         fields = '__all__'
 
 

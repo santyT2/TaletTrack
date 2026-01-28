@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import MainLayout from './layouts/MainLayout';
-import EmployeeLayout from './layouts/EmployeeLayout';
+import MainLayout from './core/layouts/MainLayout';
+import EmployeeLayout from './core/layouts/EmployeeLayout';
 import HRLayout from './modules/hr/HRLayout';
 import HRRoutes from './modules/hr/HRRoutes';
 import AdminLayout from './modules/admin/AdminLayout';
@@ -8,10 +8,10 @@ import AdminRoutes from './modules/admin/AdminRoutes';
 import AttendanceLayout from './modules/attendance/AttendanceLayout';
 import AttendanceRoutes from './modules/attendance/AttendanceRoutes';
 import PortalRoutes from './modules/portal/PortalRoutes';
-import { AuthProvider, useAuth } from './auth/AuthContext';
-import RequireRole from './auth/RequireRole';
-import LoginPage from './auth/LoginPage';
-import SetupPasswordPage from './auth/SetupPasswordPage';
+import { AuthProvider, useAuth } from './core/auth/AuthContext';
+import RequireRole from './core/auth/RequireRole';
+import LoginPage from './core/auth/LoginPage';
+import SetupPasswordPage from './core/auth/SetupPasswordPage';
 
 function AppRoutes() {
   const { user } = useAuth();

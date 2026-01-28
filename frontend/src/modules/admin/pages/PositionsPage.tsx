@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Search, ListChecks } from 'lucide-react';
-import api from '../../../services/api';
+import api from '../../../core/services/api';
 
 interface Position {
     id: number;

@@ -3,9 +3,11 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from employees.models import Empleado
 
 
 class LoginWithProfileSerializer(TokenObtainPairSerializer):
@@ -20,7 +22,22 @@ class LoginWithProfileSerializer(TokenObtainPairSerializer):
         return token
 
     def validate(self, attrs):
-        data = super().validate(attrs)
+        username_input = attrs.get("username", "") or ""
+
+        # Permitir login con documento del empleado
+        emp = Empleado.objects.filter(documento=username_input).select_related("user").first()
+        if emp and emp.user:
+            attrs = {**attrs, "username": emp.user.username}
+        elif emp and not emp.user:
+            # Empleado existe pero no tiene usuario vinculado
+            raise AuthenticationFailed("Empleado existe pero no tiene usuario asignado. Contacte a RRHH.")
+
+        try:
+            data = super().validate(attrs)
+        except AuthenticationFailed:
+            # Mensaje más claro para frontend
+            raise AuthenticationFailed("Credenciales inválidas o empleado no encontrado.")
+
         user = self.user
         data["user"] = {
             "id": user.id,

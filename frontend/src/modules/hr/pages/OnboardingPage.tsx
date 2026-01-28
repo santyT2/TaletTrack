@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import hrService, { type OnboardingTask, type EmpleadoLite } from '../../../services/hrService';
+import hrService, { type OnboardingTask, type EmpleadoLite } from '../../../core/services/hrService';
 import { CheckCircle, Circle, Plus, X, AlertCircle, Calendar, Trash2 } from 'lucide-react';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';

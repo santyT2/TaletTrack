@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Building2, ShieldCheck, UserRound, ArrowRight, LockKeyhole, IdCard } from 'lucide-react';
 import { useAuth } from './AuthContext';
 import authService from '../services/authService';
-import talentLogo from '../../media/talentrack_small.svg';
+import talentLogo from '../../../media/talentrack_small.svg';
 
 type RoleOption = 'ADMIN' | 'EMPLOYEE' | null;
 

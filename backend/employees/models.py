@@ -95,6 +95,7 @@ class Empleado(TimeStampedModel):
     manager = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='subordinados')
     foto_url = models.ImageField(upload_to='empleados/fotos/', null=True, blank=True)
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='activo')
+    current_shift = models.ForeignKey('attendance.WorkShift', on_delete=models.SET_NULL, null=True, blank=True, related_name='empleados')
 
     class Meta:
         verbose_name = "Empleado"
@@ -117,6 +118,16 @@ class Empleado(TimeStampedModel):
     def foto(self):
         """Compatibilidad hacia atrás para consumidores que esperan 'foto'."""
         return self.foto_url
+
+    @property
+    def salary(self):
+        """Salario actual derivado del contrato activo."""
+        if hasattr(self, "contract") and self.contract:
+            return self.contract.salary
+        active_contract = self.contratos.filter(estado='activo').first()
+        if active_contract:
+            return active_contract.salary or active_contract.salario_base
+        return None
 
 
 class Contrato(TimeStampedModel):
@@ -259,23 +270,27 @@ class ResultadoKPI(TimeStampedModel):
 
 # ====== LEGACY MODELS (se mantienen para compatibilidad) ======
 
-class Contract(models.Model):
-    """Modelo legado, reemplazado por Contrato."""
+class Contract(TimeStampedModel):
+    """Contrato simplificado para HR (OneToOne por empleado)."""
+
     CONTRACT_TYPES = [
-        ('indefinido', 'Indefinido'),
-        ('plazo_fijo', 'Plazo Fijo'),
-        ('pasantia', 'Pasantía'),
-        ('obra_labor', 'Obra o Labor'),
+        ('INDEFINIDO', 'Indefinido'),
+        ('PLAZO_FIJO', 'Plazo Fijo'),
+        ('SERVICIOS_PRO', 'Servicios Pro'),
     ]
 
-    employee = models.ForeignKey(Empleado, on_delete=models.CASCADE, related_name='legacy_contracts')
+    employee = models.OneToOneField(Empleado, on_delete=models.CASCADE, related_name='contract')
     contract_type = models.CharField(max_length=20, choices=CONTRACT_TYPES)
     start_date = models.DateField()
     end_date = models.DateField(null=True, blank=True)
     salary = models.DecimalField(max_digits=12, decimal_places=2)
-    document = models.FileField(upload_to='contracts/', null=True, blank=True)
+    schedule_description = models.CharField(max_length=120, default="L-V 9-18")
     is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Contrato (nuevo)"
+        verbose_name_plural = "Contratos (nuevos)"
+        ordering = ['-start_date']
 
     def __str__(self):
         return f"{self.employee.nombre_completo} - {self.contract_type}"

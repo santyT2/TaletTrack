@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { CalendarRange, MapPin, Image as ImageIcon, Edit3, ShieldAlert } from 'lucide-react';
-import attendanceService, { type RegistroAsistencia } from '../../../services/attendanceService';
+import attendanceService, { type RegistroAsistencia } from '../../../core/services/attendanceService';
 
 interface Filters {
   fecha_inicio: string;

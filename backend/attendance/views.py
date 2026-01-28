@@ -26,10 +26,12 @@ from .models import (
     ReglaAsistencia,
     EventoAsistencia,
     JornadaCalculada,
+    WorkShift,
 )
 from .serializers import (
     RegistroAsistenciaSerializer,
     TurnoSerializer,
+    WorkShiftSerializer,
     GeocercaSerializer,
     ReglaAsistenciaSerializer,
     EventoAsistenciaSerializer,
@@ -219,6 +221,16 @@ class RegistroAsistenciaViewSet(viewsets.ModelViewSet):
         if not empleado:
             raise PermissionError("No se encontró empleado asociado al usuario")
         serializer.save(empleado=empleado)
+
+
+class WorkShiftViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = WorkShift.objects.select_related("empresa").all()
+    serializer_class = WorkShiftSerializer
+    permission_classes = [AllowAny]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ["empresa"]
+    ordering_fields = ["name", "created_at"]
+    ordering = ["name"]
 
 
 class TurnoViewSet(viewsets.ModelViewSet):

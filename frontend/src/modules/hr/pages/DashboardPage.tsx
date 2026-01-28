@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import hrService, { type KPIResponse } from '../../../services/hrService';
+import hrService, { type KPIResponse } from '../../../core/services/hrService';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer, Cell } from 'recharts';
 import { Users, UserCheck, Calendar, ClipboardCheck, AlertCircle } from 'lucide-react';
 
@@ -124,7 +124,7 @@ export default function DashboardPage() {
                                         contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
                                     />
                                     <Bar dataKey="count" radius={[6, 6, 0, 0]} barSize={40}>
-                                        {data.headcount_by_branch.map((entry, index) => (
+                                        {data.headcount_by_branch.map((_, index) => (
                                             <Cell key={`cell-${index}`} fill={['#4F46E5', '#8B5CF6', '#EC4899', '#10B981'][index % 4]} />
                                         ))}
                                     </Bar>

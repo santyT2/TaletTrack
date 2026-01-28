@@ -76,7 +76,7 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
         saldo.save(update_fields=["dias_disponibles", "updated_at"])
 
         leave.mark_approved(request.user)
-        leave.save(update_fields=["status", "approved_by", "approved_at", "rejection_reason", "updated_at"])
+        leave.save(update_fields=["status", "reviewed_by", "approved_at", "rejection_reason", "updated_at"])
 
         return Response(self.get_serializer(leave).data)
 
@@ -91,6 +91,6 @@ class LeaveRequestViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Se requiere un motivo de rechazo."}, status=status.HTTP_400_BAD_REQUEST)
 
         leave.mark_rejected(request.user, motivo)
-        leave.save(update_fields=["status", "rejection_reason", "approved_by", "approved_at", "updated_at"])
+        leave.save(update_fields=["status", "rejection_reason", "reviewed_by", "approved_at", "updated_at"])
 
         return Response(self.get_serializer(leave).data)

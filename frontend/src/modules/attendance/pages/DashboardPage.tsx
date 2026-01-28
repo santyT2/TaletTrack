@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Clock, Users, CheckCircle, AlertCircle, MapPin } from 'lucide-react';
-import attendanceService, { type AsistenciaHoy } from '../../../services/attendanceService';
+import attendanceService, { type AsistenciaHoy } from '../../../core/services/attendanceService';
 
 export default function DashboardPage() {
   const [registros, setRegistros] = useState<AsistenciaHoy[]>([]);

@@ -5,6 +5,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 from .models import Empleado
+from django.db import transaction
 
 
 def _get_or_create_employee_group() -> Group:
@@ -66,3 +67,15 @@ def ensure_user_for_employee(sender, instance: Empleado, created: bool, **kwargs
     # Vincular al empleado
     instance.user = user
     instance.save(update_fields=["user"])
+
+
+@receiver(post_save, sender=Empleado)
+def assign_manager_from_branch(sender, instance: Empleado, created: bool, **kwargs):
+    """Autoasigna jefe directo desde la sucursal si no tiene manager."""
+    if instance.manager or not instance.sucursal:
+        return
+    gerente = instance.sucursal.gerente_encargado
+    if gerente and gerente != instance:
+        # evitar loops, usar update_fields para no disparar lógica adicional
+        instance.manager = gerente
+        instance.save(update_fields=["manager"])

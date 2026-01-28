@@ -20,15 +20,24 @@ from django.conf import settings
 from django.conf.urls.static import static
 from core.views import home
 from core.api import LoginWithProfileView, ChangePasswordInitialView
+from rest_framework.routers import DefaultRouter
+from employees.views import ContractViewSet, PayrollPreviewView
+from attendance.views import WorkShiftViewSet
+
+router = DefaultRouter()
+router.register(r'contracts', ContractViewSet, basename='contracts')
+router.register(r'shifts', WorkShiftViewSet, basename='shifts')
 
 urlpatterns = [
     path('', home, name='home'),
     path('admin/', admin.site.urls),
+    path('api/', include(router.urls)),
     
     # Rutas de la API REST para el frontend React (sin namespace)
     path('api/employees/', include('employees.urls')),
     path('api/attendance/', include('attendance.urls')),
     path('api/leaves/', include('leaves.urls')),
+    path('api/hr/payroll-preview/', PayrollPreviewView.as_view(), name='payroll-preview'),
     path('api/auth/login/', LoginWithProfileView.as_view(), name='login-with-profile'),
     path('api/auth/change-password-initial/', ChangePasswordInitialView.as_view(), name='change-password-initial'),
     

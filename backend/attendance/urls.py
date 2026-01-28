@@ -25,6 +25,7 @@ from .views import (
     ExportarAsistenciaExcelView,
     RegistroAsistenciaViewSet,
     TurnoViewSet,
+    WorkShiftViewSet,
     GeocercaViewSet,
     ReglaAsistenciaViewSet,
     EventoAsistenciaViewSet,
@@ -37,6 +38,7 @@ app_name = 'attendance'
 router = DefaultRouter()
 router.register(r'registros', RegistroAsistenciaViewSet, basename='api-registros')
 router.register(r'turnos', TurnoViewSet, basename='api-turnos')
+router.register(r'workshifts', WorkShiftViewSet, basename='api-workshifts')
 router.register(r'geocercas', GeocercaViewSet, basename='api-geocercas')
 router.register(r'reglas', ReglaAsistenciaViewSet, basename='api-reglas-asistencia')
 router.register(r'eventos', EventoAsistenciaViewSet, basename='api-eventos-asistencia')

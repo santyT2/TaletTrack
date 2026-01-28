@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { LogIn, LogOut, MapPin, CheckCircle, AlertCircle, Loader } from 'lucide-react';
-import attendanceService from '../../../services/attendanceService';
+import attendanceService from '../../../core/services/attendanceService';
 
 type TipoMarcacion = 'ENTRADA' | 'SALIDA';
 

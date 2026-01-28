@@ -6,11 +6,15 @@
 
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import action
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
-from datetime import time, datetime
+from datetime import time, datetime, date
+from calendar import monthrange
+from django.db.models import Sum
+from django.db.models.functions import Coalesce
 
 from core.models import Empresa
 from .models import (
@@ -19,11 +23,12 @@ from .models import (
     Cargo, Contract, LeaveRequest, OnboardingTask,
 )
 from attendance.models import RegistroAsistencia, Turno
+from leaves.models import LeaveRequest as HRLeaveRequest
 from .serializers import (
     EmpresaSerializer, SucursalSerializer, EmpleadoSerializer,
     ContratoSerializer, DocumentoEmpleadoSerializer,
     TipoAusenciaSerializer, SolicitudAusenciaSerializer, SaldoVacacionesSerializer,
-    KPISerializer, ResultadoKPISerializer,
+    KPISerializer, ResultadoKPISerializer, EmployeePortalSerializer,
     CargoSerializer, ContractSerializer, LeaveRequestSerializer, OnboardingTaskSerializer,
 )
 
@@ -177,12 +182,18 @@ class EmployeePortalViewSet(viewsets.ViewSet):
 
     def _get_empleado(self, request):
         user = request.user
+        # 1) relación directa OneToOne
         if hasattr(user, "empleado") and user.empleado:
             return user.empleado
-        # fallback por correo/username
-        emp = Empleado.objects.filter(email=user.email).first()
+        # 2) búsqueda por FK user
+        emp = Empleado.objects.filter(user=user).first()
         if emp:
             return emp
+        # 3) fallback por correo o username
+        if user.email:
+            emp = Empleado.objects.filter(email=user.email).first()
+            if emp:
+                return emp
         return Empleado.objects.filter(email=user.username).first()
 
     @action(detail=False, methods=["get"], url_path="me")
@@ -191,43 +202,8 @@ class EmployeePortalViewSet(viewsets.ViewSet):
         if not emp:
             return Response({"detail": "No se encontró empleado vinculado."}, status=status.HTTP_404_NOT_FOUND)
 
-        contrato = emp.contratos.filter(estado='activo').order_by('-fecha_inicio').first()
-        turno = contrato.contrato_turno if contrato and contrato.contrato_turno else Turno.objects.filter(empresa=emp.empresa).first()
-        data = {
-            "id": emp.id,
-            "nombre": emp.nombre_completo,
-            "documento": emp.documento,
-            "email": emp.email,
-            "cargo": emp.cargo.nombre if emp.cargo else None,
-            "sucursal": emp.sucursal.nombre if emp.sucursal else None,
-            "foto_url": emp.foto_url.url if emp.foto_url else None,
-            "contrato": (
-                {
-                    "id": contrato.id,
-                    "tipo": contrato.tipo,
-                    "estado": contrato.estado,
-                    "fecha_inicio": contrato.fecha_inicio,
-                    "fecha_fin": contrato.fecha_fin,
-                    "salary": float(contrato.salary or contrato.salario_base),
-                    "salario_base": float(contrato.salario_base),
-                    "beneficios": contrato.beneficios,
-                }
-                if contrato
-                else None
-            ),
-            "turno": (
-                {
-                    "id": turno.id,
-                    "nombre": turno.nombre,
-                    "hora_inicio": turno.hora_inicio,
-                    "hora_fin": turno.hora_fin,
-                    "dias_semana": turno.dias_semana,
-                }
-                if turno
-                else None
-            ),
-        }
-        return Response(data)
+        serializer = EmployeePortalSerializer(emp)
+        return Response(serializer.data)
 
     @action(detail=False, methods=["get"], url_path="dashboard-stats")
     def dashboard_stats(self, request):
@@ -255,14 +231,17 @@ class EmployeePortalViewSet(viewsets.ViewSet):
         attendance_score = round((puntuales / total_entradas) * 100, 2) if total_entradas else 0
 
         # Próximo turno: usar turno de contrato activo
-        contrato = emp.contratos.filter(estado='activo').order_by('-fecha_inicio').first()
-        turno = contrato.contrato_turno if contrato and contrato.contrato_turno else None
+        contrato = emp.contract if hasattr(emp, "contract") else None
+        legacy_contract = emp.contratos.filter(estado='activo').order_by('-fecha_inicio').first()
+        turno = getattr(emp, "current_shift", None)
+        if not turno and legacy_contract and legacy_contract.contrato_turno:
+            turno = legacy_contract.contrato_turno
         next_shift = None
         if turno:
             next_shift = {
-                "nombre": turno.nombre,
-                "hora_inicio": turno.hora_inicio,
-                "hora_fin": turno.hora_fin,
+                "nombre": getattr(turno, "name", None) or getattr(turno, "nombre", None),
+                "hora_inicio": getattr(turno, "start_time", None) or getattr(turno, "hora_inicio", None),
+                "hora_fin": getattr(turno, "end_time", None) or getattr(turno, "hora_fin", None),
             }
 
         pending_tasks = [
@@ -340,6 +319,68 @@ class EmployeePortalViewSet(viewsets.ViewSet):
         )
 
 
+class PayrollPreviewView(APIView):
+    """Calcula pre-nómina simple para HR."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        month = int(request.query_params.get("month", timezone.now().month))
+        year = int(request.query_params.get("year", timezone.now().year))
+
+        start = date(year, month, 1)
+        last_day = monthrange(year, month)[1]
+        end = date(year, month, last_day)
+
+        employees = (
+            Empleado.objects.filter(estado="activo")
+            .select_related("contract", "sucursal", "cargo")
+            .all()
+        )
+
+        preview = []
+        for emp in employees:
+            contract = getattr(emp, "contract", None)
+            if not contract or not contract.is_active:
+                continue
+
+            base_salary = float(contract.salary)
+            unexcused_days = (
+                HRLeaveRequest.objects.filter(
+                    empleado=emp,
+                    status="REJECTED",
+                    start_date__lte=end,
+                    end_date__gte=start,
+                )
+                .aggregate(total=Coalesce(Sum("days"), 0))
+                .get("total")
+            ) or 0
+
+            days_worked = max(0, 30 - float(unexcused_days))
+            estimated_payment = round((base_salary / 30) * days_worked, 2)
+
+            preview.append(
+                {
+                    "employee_id": emp.id,
+                    "employee_name": emp.nombre_completo,
+                    "branch": emp.sucursal.nombre if emp.sucursal else None,
+                    "position": emp.cargo.nombre if emp.cargo else None,
+                    "base_salary": base_salary,
+                    "unexcused_days": float(unexcused_days),
+                    "days_worked": days_worked,
+                    "estimated_payment": estimated_payment,
+                    "contract_id": contract.id,
+                    "end_date": contract.end_date,
+                }
+            )
+
+        return Response({
+            "month": month,
+            "year": year,
+            "results": preview,
+        })
+
+
 # ===== LEGACY VIEWSETS (se mantienen) =====
 
 class CargoViewSet(viewsets.ModelViewSet):
@@ -367,6 +408,24 @@ class ContractViewSet(viewsets.ModelViewSet):
     filterset_fields = ['employee', 'contract_type', 'is_active']
     ordering_fields = ['start_date', 'end_date', 'created_at']
     ordering = ['-start_date']
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        employee = serializer.validated_data["employee"]
+
+        # Si el empleado ya tiene contrato, lo actualizamos para mantener unicidad y salario sincronizado
+        existing = Contract.objects.filter(employee=employee).first()
+        if existing:
+            for field, value in serializer.validated_data.items():
+                setattr(existing, field, value)
+            existing.save()
+            refreshed = self.get_serializer(existing)
+            return Response(refreshed.data, status=status.HTTP_200_OK)
+
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 class LeaveRequestViewSet(viewsets.ModelViewSet):
