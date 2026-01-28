@@ -3,6 +3,7 @@
 Dev Manager: orquestador simple para entorno local.
 Requisitos: Python 3.10+, pip, npm. Ejecutar desde la raíz del repo.
 """
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -28,11 +29,11 @@ def ensure_env() -> None:
         return
     print("No se encontró .env. Creándolo...")
     secret = input("SECRET_KEY (texto libre, minimo 32 chars): ").strip() or "changeme-secret"
-    db_name = input("DB_NAME [talent_track]: ").strip() or "talent_track"
-    db_user = input("DB_USER [postgres]: ").strip() or "postgres"
-    db_pass = input("DB_PASSWORD [postgres]: ").strip() or "postgres"
+    db_name = input("DB_NAME [talent_track_db]: ").strip() or "talent_track_db"
+    db_user = input("DB_USER [root]: ").strip() or "root"
+    db_pass = input("DB_PASSWORD []: ").strip()
     db_host = input("DB_HOST [localhost]: ").strip() or "localhost"
-    db_port = input("DB_PORT [5432]: ").strip() or "5432"
+    db_port = input("DB_PORT [3307]: ").strip() or "3307"
     content = [
         f"SECRET_KEY={secret}",
         "DEBUG=True",
@@ -58,11 +59,11 @@ def test_db_connection() -> bool:
 
     print("Conexión a BD falló.")
     if input("¿Actualizar credenciales en .env ahora? [s/N]: ").strip().lower() == "s":
-        db_name = input("DB_NAME: ").strip() or "talent_track"
-        db_user = input("DB_USER: ").strip() or "postgres"
-        db_pass = input("DB_PASSWORD: ").strip() or "postgres"
+        db_name = input("DB_NAME: ").strip() or "talent_track_db"
+        db_user = input("DB_USER: ").strip() or "root"
+        db_pass = input("DB_PASSWORD: ").strip()
         db_host = input("DB_HOST: ").strip() or "localhost"
-        db_port = input("DB_PORT: ").strip() or "5432"
+        db_port = input("DB_PORT: ").strip() or "3307"
         lines = ENV_FILE.read_text(encoding="utf-8").splitlines() if ENV_FILE.exists() else []
         kv = {k: v for k, v in (line.split("=", 1) for line in lines if "=" in line)}
         kv.update(
@@ -82,8 +83,9 @@ def test_db_connection() -> bool:
 
 def start_servers() -> None:
     print("Levantando Django y Vite en paralelo (CTRL+C para detener)...")
+    npm_exe = "npm.cmd" if os.name == "nt" else "npm"
     django_cmd = [sys.executable, "manage.py", "runserver", "0.0.0.0:8000"]
-    vite_cmd = ["npm", "run", "dev", "--", "--host", "--port", "5173"]
+    vite_cmd = [npm_exe, "run", "dev", "--", "--host", "--port", "5173"]
     procs = [
         subprocess.Popen(django_cmd, cwd=BACKEND_DIR),
         subprocess.Popen(vite_cmd, cwd=FRONTEND_DIR, shell=False),
