@@ -36,7 +36,7 @@ export default function AttendancePage() {
       .map(([fecha, recs]) => {
         const entrada = recs.find((r) => r.type === 'CHECK_IN');
         const salida = recs.find((r) => r.type === 'CHECK_OUT');
-        const estado = entrada ? (entrada.is_late ? 'Atraso' : 'Puntual') : 'Pendiente';
+        const estado: Row['estado'] = entrada ? (entrada.is_late ? 'Atraso' : 'Puntual') : 'Pendiente';
         const format = (r?: AttendanceRecordNew) => (r ? new Date(r.timestamp).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : null);
         return { fecha, entrada: format(entrada), salida: format(salida), estado };
       })

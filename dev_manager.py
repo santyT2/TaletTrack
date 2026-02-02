@@ -13,10 +13,21 @@ BASE_DIR = Path(__file__).resolve().parent
 BACKEND_DIR = BASE_DIR / "backend"
 FRONTEND_DIR = BASE_DIR / "frontend"
 ENV_FILE = BACKEND_DIR / ".env"
+VENV_PY = BASE_DIR / ".venv" / "Scripts" / "python.exe"
 
 
 def npm_cmd() -> str:
     return "npm.cmd" if os.name == "nt" else "npm"
+
+
+def ensure_venv_python() -> None:
+    """Re-ejecuta este script con el Python del .venv si no se está usando."""
+    try:
+        if VENV_PY.exists() and Path(sys.executable).resolve() != VENV_PY.resolve():
+            print(f"Reejecutando con el Python de .venv: {VENV_PY}")
+            os.execv(str(VENV_PY), [str(VENV_PY), __file__, *sys.argv[1:]])
+    except Exception as exc:  # pragma: no cover
+        print(f"No se pudo reejecutar con .venv: {exc}")
 
 
 def run(cmd: List[str], cwd: Optional[Path] = None, check: bool = True) -> int:
@@ -87,7 +98,7 @@ def test_db_connection() -> bool:
 
 def start_servers() -> None:
     print("Levantando Django y Vite en paralelo (CTRL+C para detener)...")
-    npm_exe = "npm.cmd" if os.name == "nt" else "npm"
+    npm_exe = npm_cmd()
     django_cmd = [sys.executable, "manage.py", "runserver", "0.0.0.0:8000"]
     vite_cmd = [npm_exe, "run", "dev", "--", "--host", "--port", "5173"]
     procs = [
@@ -175,6 +186,35 @@ def menu():
 
 
 if __name__ == "__main__":
+    ensure_venv_python()
+
+    ACTIONS = {
+        "1": install_all,
+        "install": install_all,
+        "2": dev_mode,
+        "dev": dev_mode,
+        "3": migrations,
+        "migrate": migrations,
+        "4": clean,
+        "clean": clean,
+        "5": tests,
+        "test": tests,
+        "6": precommit,
+        "precommit": precommit,
+        "7": smart_start,
+        "smart": smart_start,
+    }
+
+    # Modo no interactivo: permitir pasar opción por argumento (ej. "smart" o "1")
+    if len(sys.argv) > 1:
+        action = ACTIONS.get(sys.argv[1].lower())
+        if action:
+            try:
+                action()
+            except KeyboardInterrupt:
+                print("\nInterrumpido por usuario.")
+            sys.exit(0)
+
     try:
         menu()
     except KeyboardInterrupt:

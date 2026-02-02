@@ -120,8 +120,11 @@ const attendanceService = {
     employee?: number | string;
     sucursal?: number | string;
   }): Promise<AttendanceRecordNew[]> {
-    const response = await client.get<AttendanceRecordNew[]>('/records/', { params });
-    return Array.isArray(response.data?.results) ? (response.data as any).results : response.data;
+    const response = await client.get<AttendanceRecordNew[] | { results?: AttendanceRecordNew[] }>('/records/', { params });
+    const data = response.data as any;
+    if (Array.isArray(data?.results)) return data.results as AttendanceRecordNew[];
+    if (Array.isArray(data)) return data as AttendanceRecordNew[];
+    return [];
   },
 
   // Obtener asistencia de hoy (para el mapa del dashboard)

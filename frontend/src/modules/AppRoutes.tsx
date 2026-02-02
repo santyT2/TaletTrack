@@ -39,7 +39,8 @@ function RequireRole({
   }
 
   if (!allowedRoles.includes(user.role)) {
-    // El usuario no tiene permisos, redirigir a su módulo apropiadoreturn <Navigate to={getRoleDestination(user.role)} replace />;
+    // Usuario sin permiso: lo redirigimos a su módulo destino según rol
+    return <Navigate to={getRoleDestination(user.role)} replace />;
   }
 
   return <>{children}</>;
@@ -56,7 +57,6 @@ function getRoleDestination(role: string): string {
     case 'ADMIN_RRHH':
     case 'MANAGER':
       return '/hr';
-    case 'MANAGER':
     case 'EMPLOYEE':
       return '/portal';
     default:
