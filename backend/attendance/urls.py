@@ -23,6 +23,10 @@ from .views import (
     MarcarAsistenciaView,
     AsistenciaHoyView,
     ExportarAsistenciaExcelView,
+    AttendanceRecordMarkView,
+    AttendanceRecordHistoryView,
+    AttendanceTodayStatusView,
+    AttendanceRecordViewSet,
     RegistroAsistenciaViewSet,
     TurnoViewSet,
     WorkShiftViewSet,
@@ -43,12 +47,18 @@ router.register(r'geocercas', GeocercaViewSet, basename='api-geocercas')
 router.register(r'reglas', ReglaAsistenciaViewSet, basename='api-reglas-asistencia')
 router.register(r'eventos', EventoAsistenciaViewSet, basename='api-eventos-asistencia')
 router.register(r'jornadas', JornadaCalculadaViewSet, basename='api-jornadas-calculadas')
+router.register(r'records', AttendanceRecordViewSet, basename='api-attendance-records')
 
 # ========================================================
 # ROUTES - API REST
 # ========================================================
 
 urlpatterns = [
+    # Nueva API de marcación georreferenciada
+    path('mark/', AttendanceRecordMarkView.as_view(), name='attendance-mark'),
+    path('history/', AttendanceRecordHistoryView.as_view(), name='attendance-history'),
+    path('today-status/', AttendanceTodayStatusView.as_view(), name='attendance-today-status'),
+
     # Endpoints de marcación
     path('marcar/', MarcarAsistenciaView.as_view(), name='marcar-asistencia'),
     path('today/', AsistenciaHoyView.as_view(), name='asistencia-hoy'),

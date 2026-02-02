@@ -15,7 +15,17 @@ rootApi.interceptors.request.use((config) => {
 
 export interface KPIResponse {
     headcount_by_department: { sucursal__nombre: string; count: number }[];
-    headcount_by_branch?: { sucursal__nombre: string; count: number }[];
+    headcount_by_branch?: Array<{
+        id?: number;
+        branch?: string;
+        sucursal?: string;
+        sucursal_id?: number;
+        sucursal__nombre?: string;
+        name?: string;
+        nombre?: string;
+        count: number;
+    }>;
+    employees_by_status?: { status: string; count: number }[];
     retention_rate: number;
     pending_leaves_count: number;
     onboarding_progress: number;
@@ -27,6 +37,7 @@ export interface EmployeeNode {
     title: string;
     parentId: number | null;
     img: string | null;
+    level?: string;
     position_name?: string;
     branch_name?: string;
     full_name?: string;
@@ -45,6 +56,9 @@ export interface EmployeeRow {
     sucursal?: number | null;
     sucursal_nombre?: string | null;
     estado: string;
+    empresa?: number;
+    manager?: number | null;
+    manager_nombre?: string | null;
     position_details?: {
         id: number;
         name: string;
@@ -109,6 +123,14 @@ export interface PayrollPreviewResponse {
     month: number;
     year: number;
     results: PayrollPreviewRow[];
+    issues?: PayrollIssue[];
+}
+
+export interface PayrollIssue {
+    employee_id: number;
+    employee_name: string;
+    level: 'error' | 'warning' | string;
+    message: string;
 }
 
 export interface WorkShift {
@@ -180,15 +202,16 @@ const hrService = {
 
     /**
      * Obtiene la estructura plana del organigrama.
-     * Endpoint: GET /api/organigram/
+     * Endpoint: GET /api/hr/organigram/
      */
     getOrganigram: async (): Promise<any> => {
         try {
-            const response = await api.get('/organigram/');
+            const response = await rootApi.get('/hr/organigram/');
             return response.data;
         } catch (error) {
-            console.error("Error fetching Organigram:", error);
-            throw error;
+            console.error("Error fetching Organigram (HR endpoint), fallback to legacy:", error);
+            const legacy = await api.get('/organigram/');
+            return legacy.data;
         }
     },
 
@@ -494,6 +517,11 @@ const hrService = {
             ? response.data
             : [];
         return data as WorkShift[];
+    },
+
+    async createWorkShift(payload: Omit<WorkShift, 'id'>): Promise<WorkShift> {
+        const response = await rootApi.post('/shifts/', payload);
+        return response.data as WorkShift;
     },
 
     async assignShift(employeeId: number, shiftId: number | null): Promise<EmployeeRow> {

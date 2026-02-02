@@ -23,7 +23,7 @@ from .models import (
     Cargo, Contract, LeaveRequest, OnboardingTask,
 )
 from attendance.models import RegistroAsistencia, Turno
-from leaves.models import LeaveRequest as HRLeaveRequest
+from employees.services.payroll import PayrollCalculator
 from .serializers import (
     EmpresaSerializer, SucursalSerializer, EmpleadoSerializer,
     ContratoSerializer, DocumentoEmpleadoSerializer,
@@ -331,53 +331,14 @@ class PayrollPreviewView(APIView):
         start = date(year, month, 1)
         last_day = monthrange(year, month)[1]
         end = date(year, month, last_day)
-
-        employees = (
-            Empleado.objects.filter(estado="activo")
-            .select_related("contract", "sucursal", "cargo")
-            .all()
-        )
-
-        preview = []
-        for emp in employees:
-            contract = getattr(emp, "contract", None)
-            if not contract or not contract.is_active:
-                continue
-
-            base_salary = float(contract.salary)
-            unexcused_days = (
-                HRLeaveRequest.objects.filter(
-                    empleado=emp,
-                    status="REJECTED",
-                    start_date__lte=end,
-                    end_date__gte=start,
-                )
-                .aggregate(total=Coalesce(Sum("days"), 0))
-                .get("total")
-            ) or 0
-
-            days_worked = max(0, 30 - float(unexcused_days))
-            estimated_payment = round((base_salary / 30) * days_worked, 2)
-
-            preview.append(
-                {
-                    "employee_id": emp.id,
-                    "employee_name": emp.nombre_completo,
-                    "branch": emp.sucursal.nombre if emp.sucursal else None,
-                    "position": emp.cargo.nombre if emp.cargo else None,
-                    "base_salary": base_salary,
-                    "unexcused_days": float(unexcused_days),
-                    "days_worked": days_worked,
-                    "estimated_payment": estimated_payment,
-                    "contract_id": contract.id,
-                    "end_date": contract.end_date,
-                }
-            )
+        calculator = PayrollCalculator(start, end)
+        payload = calculator.calculate()
 
         return Response({
             "month": month,
             "year": year,
-            "results": preview,
+            "results": payload.get("results", []),
+            "issues": payload.get("issues", []),
         })
 
 

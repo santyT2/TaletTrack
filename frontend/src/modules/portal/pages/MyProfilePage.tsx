@@ -10,6 +10,9 @@ export default function MyProfilePage() {
   const [error, setError] = useState<string | null>(null);
 
   const money = useMemo(() => new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN', maximumFractionDigits: 0 }), []);
+  const shift = profile?.shift_details || profile?.current_shift_detail || null;
+  const managerName = profile?.supervisor_name || profile?.manager_nombre || null;
+  const salaryValue = profile?.contract_details?.salary ?? profile?.salary ?? null;
 
   const renderWeekdays = (dias: number[] | null | undefined): string => {
     if (!dias || dias.length === 0) return '—';
@@ -46,7 +49,7 @@ export default function MyProfilePage() {
         <div className="flex flex-wrap gap-2">
           <Badge icon={<ShieldCheck className="w-4 h-4" />} text="Acceso seguro" />
           {profile?.cargo ? <Badge icon={<Briefcase className="w-4 h-4" />} text={profile.cargo} /> : null}
-          {profile?.supervisor_name ? <Badge icon={<ShieldCheck className="w-4 h-4" />} text={`Jefe: ${profile.supervisor_name}`} /> : null}
+          {managerName ? <Badge icon={<ShieldCheck className="w-4 h-4" />} text={`Jefe: ${managerName}`} /> : null}
         </div>
       </header>
 
@@ -57,7 +60,7 @@ export default function MyProfilePage() {
           <DetailRow label="Teléfono" value={profile?.telefono || '—'} icon={<Phone className="w-4 h-4 text-slate-500" />} />
           <DetailRow label="Sucursal" value={profile?.sucursal || '—'} icon={<MapPin className="w-4 h-4 text-slate-500" />} />
           <DetailRow label="Cargo" value={profile?.cargo || '—'} />
-          <DetailRow label="Jefe directo" value={profile?.supervisor_name || 'Sin supervisor asignado'} />
+          <DetailRow label="Jefe directo" value={managerName || 'Sin supervisor asignado'} />
         </Card>
 
         <Card title="Contrato" icon={<Briefcase className="w-5 h-5 text-slate-600" />}>
@@ -66,7 +69,7 @@ export default function MyProfilePage() {
               <DetailRow label="Tipo" value={profile.contract_details.type} />
               <DetailRow label="Inicio" value={profile.contract_details.start_date} />
               <DetailRow label="Fin" value={profile.contract_details.end_date || 'Indefinido'} />
-              <DetailRow label="Salario" value={money.format(profile.contract_details.salary)} />
+              <DetailRow label="Salario" value={salaryValue ? money.format(salaryValue) : '—'} />
             </>
           ) : (
             <div className="flex items-center gap-2 text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-sm">
@@ -77,11 +80,11 @@ export default function MyProfilePage() {
       </div>
 
       <Card title="Turno asignado" icon={<Clock3 className="w-5 h-5 text-slate-600" />}>
-        {profile?.shift_details ? (
+        {shift ? (
           <>
-            <DetailRow label="Nombre" value={profile.shift_details.name} />
-            <DetailRow label="Horario" value={`${profile.shift_details.start_time} - ${profile.shift_details.end_time}`} />
-            <DetailRow label="Días" value={renderWeekdays(profile.shift_details.days)} />
+            <DetailRow label="Nombre" value={shift.name} />
+            <DetailRow label="Horario" value={`${shift.start_time} - ${shift.end_time}`} />
+            <DetailRow label="Días" value={renderWeekdays(shift.days)} />
           </>
         ) : (
           <DetailRow label="Turno" value="Sin turno asignado" />

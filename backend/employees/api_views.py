@@ -1,7 +1,9 @@
+from collections import defaultdict
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
 from django.db.models import Count, Q, Avg
 from django.utils import timezone
 from datetime import timedelta
@@ -18,7 +20,7 @@ from .serializers import (
     ContractSerializer,
     LeaveRequestSerializer,
     OnboardingTaskSerializer,
-    OrganigramNodeSerializer
+    OrganigramSerializer
 )
 
 
@@ -348,28 +350,52 @@ def kpi_dashboard(request):
         )
 
 
+def _build_children_map(employees_queryset):
+    """Optimiza la serialización recursiva agrupando hijos por manager_id."""
+    children_map = defaultdict(list)
+    roots = []
+
+    for emp in employees_queryset:
+        if emp.manager_id:
+            children_map[emp.manager_id].append(emp)
+        else:
+            roots.append(emp)
+
+    return roots, children_map
+
+
+class OrganigramView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            employees = (
+                Empleado.objects.filter(estado='activo')
+                .select_related('cargo', 'manager', 'sucursal')
+                .order_by('apellidos', 'nombres')
+            )
+
+            roots, children_map = _build_children_map(employees)
+            serializer = OrganigramSerializer(
+                roots,
+                many=True,
+                context={'request': request, 'children_map': children_map},
+            )
+
+            return Response({
+                'organization': serializer.data,
+                'total_employees': employees.count(),
+            })
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 @api_view(['GET'])
 def organigram(request):
-    """
-    Endpoint para obtener el organigrama de la empresa
-    Retorna estructura anidada de empleados
-    """
-    try:
-        # Obtener empleados de nivel superior (sin jefe)
-        top_level_employees = Empleado.objects.filter(
-            manager__isnull=True,
-            estado='activo'
-        ).select_related('cargo')
-        
-        serializer = OrganigramNodeSerializer(top_level_employees, many=True)
-        
-        return Response({
-            'organization': serializer.data,
-            'total_employees': Empleado.objects.filter(estado='activo').count()
-        })
-    
-    except Exception as e:
-        return Response(
-            {'error': str(e)},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+    """Compatibilidad legado para el organigrama."""
+    view = OrganigramView.as_view()
+    return view(request)

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Download, Loader2, RefreshCw } from 'lucide-react';
-import hrService, { type PayrollPreviewRow } from '../../../core/services/hrService';
+import hrService, { type PayrollPreviewRow, type PayrollIssue } from '../../../core/services/hrService';
 
 export default function PayrollPage() {
   const today = new Date();
@@ -9,6 +9,7 @@ export default function PayrollPage() {
   const [rows, setRows] = useState<PayrollPreviewRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [issues, setIssues] = useState<PayrollIssue[]>([]);
 
   useEffect(() => {
     void loadPreview();
@@ -20,6 +21,7 @@ export default function PayrollPage() {
       setError(null);
       const data = await hrService.getPayrollPreview({ month, year });
       setRows(data.results || []);
+      setIssues(data.issues || []);
     } catch (err) {
       console.error(err);
       setError('No se pudo calcular la pre-nómina.');
@@ -89,6 +91,19 @@ export default function PayrollPage() {
 
       {error && (
         <div className="bg-rose-50 text-rose-700 border border-rose-100 rounded-lg px-4 py-3 text-sm">{error}</div>
+      )}
+
+      {issues.length > 0 && (
+        <div className="bg-amber-50 text-amber-800 border border-amber-200 rounded-lg px-4 py-3 text-sm space-y-1">
+          <p className="font-semibold">Revisar antes de confirmar:</p>
+          <ul className="list-disc list-inside space-y-1">
+            {issues.map((i) => (
+              <li key={`${i.employee_id}-${i.message}`} className={i.level === 'error' ? 'text-rose-700' : 'text-amber-800'}>
+                {i.employee_name}: {i.message}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">

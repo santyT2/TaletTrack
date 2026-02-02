@@ -39,10 +39,19 @@ class LoginWithProfileSerializer(TokenObtainPairSerializer):
             raise AuthenticationFailed("Credenciales inválidas o empleado no encontrado.")
 
         user = self.user
+        backend_role = getattr(user, "role", None)
+        if not backend_role:
+            if getattr(user, "is_superuser", False):
+                backend_role = "SUPERADMIN"
+            elif getattr(user, "is_staff", False):
+                backend_role = "ADMIN_RRHH"
+            else:
+                backend_role = "EMPLOYEE"
+
         data["user"] = {
             "id": user.id,
             "name": f"{user.first_name} {user.last_name}".strip() or user.username,
-            "role": getattr(user, "role", "EMPLOYEE"),
+            "role": backend_role,
             "must_change_password": getattr(user, "must_change_password", False),
             "username": user.username,
         }

@@ -18,20 +18,26 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from core.views import home
+from core.views import home, EmpresaViewSet, UsuarioViewSet
 from core.api import LoginWithProfileView, ChangePasswordInitialView
 from rest_framework.routers import DefaultRouter
 from employees.views import ContractViewSet, PayrollPreviewView
+from employees.api_views import OrganigramView
 from attendance.views import WorkShiftViewSet
 
 router = DefaultRouter()
 router.register(r'contracts', ContractViewSet, basename='contracts')
 router.register(r'shifts', WorkShiftViewSet, basename='shifts')
+router.register(r'empresa', EmpresaViewSet, basename='empresa')
+router.register(r'usuarios', UsuarioViewSet, basename='usuarios')
 
 urlpatterns = [
     path('', home, name='home'),
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
+
+    # Organigrama HR (endpoint dedicado)
+    path('api/hr/organigram/', OrganigramView.as_view(), name='hr-organigram'),
     
     # Rutas de la API REST para el frontend React (sin namespace)
     path('api/employees/', include('employees.urls')),

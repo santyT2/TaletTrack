@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     Turno, Geocerca, ReglaAsistencia, EventoAsistencia, JornadaCalculada,
-    RegistroAsistencia, WorkShift,
+    RegistroAsistencia, WorkShift, AttendanceRecord,
 )
 from employees.models import Empleado
 
@@ -60,3 +60,28 @@ class RegistroAsistenciaSerializer(serializers.ModelSerializer):
             'fecha_hora', 'tipo', 'latitud', 'longitud',
             'es_tardanza', 'minutos_atraso'
         ]
+
+
+class AttendanceRecordSerializer(serializers.ModelSerializer):
+    employee_name = serializers.CharField(source='employee.nombre_completo', read_only=True)
+    sucursal_nombre = serializers.CharField(source='employee.sucursal.nombre', read_only=True)
+    sucursal_id = serializers.IntegerField(source='employee.sucursal.id', read_only=True)
+    cargo_nombre = serializers.CharField(source='employee.cargo.nombre', read_only=True)
+
+    class Meta:
+        model = AttendanceRecord
+        fields = [
+            'id',
+            'employee',
+            'employee_name',
+            'timestamp',
+            'type',
+            'latitude',
+            'longitude',
+            'device_info',
+            'is_late',
+            'sucursal_nombre',
+            'sucursal_id',
+            'cargo_nombre',
+        ]
+        read_only_fields = ['id', 'employee', 'timestamp', 'is_late', 'device_info']

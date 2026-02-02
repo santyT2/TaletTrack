@@ -9,6 +9,8 @@ export interface PortalProfile {
   sucursal: string | null;
   foto_url: string | null;
   supervisor_name: string | null;
+  manager_nombre?: string | null;
+  salary?: number | null;
   telefono?: string | null;
   direccion?: string | null;
   turno?: string | null;
@@ -18,6 +20,13 @@ export interface PortalProfile {
     start_date: string;
     end_date: string | null;
     salary: number;
+  } | null;
+  current_shift_detail?: {
+    id: number;
+    name: string;
+    start_time: string;
+    end_time: string;
+    days: number[];
   } | null;
   shift_details: {
     id: number;

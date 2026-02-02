@@ -15,6 +15,10 @@ FRONTEND_DIR = BASE_DIR / "frontend"
 ENV_FILE = BACKEND_DIR / ".env"
 
 
+def npm_cmd() -> str:
+    return "npm.cmd" if os.name == "nt" else "npm"
+
+
 def run(cmd: List[str], cwd: Optional[Path] = None, check: bool = True) -> int:
     print(f"\n>> {' '.join(cmd)} (cwd={cwd or BASE_DIR})")
     result = subprocess.run(cmd, cwd=cwd or BASE_DIR)
@@ -105,7 +109,7 @@ def start_servers() -> None:
 
 def install_all():
     run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"], cwd=BACKEND_DIR)
-    run(["npm", "install"], cwd=FRONTEND_DIR, check=False)
+    run([npm_cmd(), "install"], cwd=FRONTEND_DIR, check=False)
 
 
 def dev_mode():
@@ -134,7 +138,7 @@ def clean():
 
 def tests():
     run([sys.executable, "manage.py", "test"], cwd=BACKEND_DIR, check=False)
-    run(["npm", "run", "test", "--", "--watch=false"], cwd=FRONTEND_DIR, check=False)
+    run([npm_cmd(), "run", "test", "--", "--watch=false"], cwd=FRONTEND_DIR, check=False)
 
 
 def precommit():

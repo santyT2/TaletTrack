@@ -1,22 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Search, ListChecks } from 'lucide-react';
-import api from '../../../core/services/api';
-
-interface Position {
-    id: number;
-    nombre: string;
-    descripcion: string;
-    nivel_requerido?: string;
-    salario_base: string;
-    departamento?: string;
-    salario_minimo?: string;
-    salario_maximo?: string;
-    responsabilidades?: string;
-    beneficios?: string;
-}
+import { positionService } from '../../../core/services/adminService';
+import type { PositionData, PositionCreateData, PositionUpdateData } from '../../../core/services/adminService';
 
 export default function PositionsPage() {
-    const [positions, setPositions] = useState<Position[]>([]);
+    const [positions, setPositions] = useState<PositionData[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -43,21 +31,13 @@ export default function PositionsPage() {
     const loadPositions = async () => {
         try {
             setLoading(true);
-            const response = await api.get('/cargos/');
-            const raw = Array.isArray(response.data?.results)
-                ? response.data.results
-                : Array.isArray(response.data)
-                ? response.data
-                : [];
-            if (!Array.isArray(response.data?.results) && !Array.isArray(response.data)) {
-                setError('Respuesta inesperada al listar cargos');
-            } else {
-                setError(null);
-            }
-            setPositions(raw);
-        } catch (err) {
+            const data = await positionService.getPositions();
+            setError(null);
+            const list = Array.isArray(data) ? data : data?.results || [];
+            setPositions(list as PositionData[]);
+        } catch (err: any) {
             console.error(err);
-            setError('Error al cargar cargos');
+            setError(err?.response?.data?.detail || 'Error al cargar cargos');
         } finally {
             setLoading(false);
         }
@@ -73,7 +53,7 @@ export default function PositionsPage() {
         }
 
         try {
-            let beneficiosParsed = null;
+            let beneficiosParsed: any = null;
             if (formData.beneficios) {
                 try {
                     beneficiosParsed = JSON.parse(formData.beneficios);
@@ -82,22 +62,25 @@ export default function PositionsPage() {
                     return;
                 }
             }
-            const payload = {
+            const payload: PositionCreateData | PositionUpdateData = {
                 nombre: formData.nombre,
                 descripcion: formData.descripcion,
-                nivel_requerido: formData.nivel_requerido,
-                salario_base: formData.salario_base,
-                salario_minimo: formData.salario_minimo,
-                salario_maximo: formData.salario_maximo,
-                departamento: formData.departamento,
-                responsabilidades: formData.responsabilidades,
-                beneficios: beneficiosParsed,
-            };
+                nivel: formData.nivel_requerido,
+                salario_base: Number(formData.salario_base) || 0,
+                // Campos opcionales se agregan abajo
+            } as any;
+
+            (payload as any).salario_minimo = formData.salario_minimo ? Number(formData.salario_minimo) : undefined;
+            (payload as any).salario_maximo = formData.salario_maximo ? Number(formData.salario_maximo) : undefined;
+            (payload as any).departamento = formData.departamento || undefined;
+            (payload as any).responsabilidades = formData.responsabilidades || undefined;
+            (payload as any).beneficios = beneficiosParsed;
+
             if (editingId) {
-                await api.patch(`/cargos/${editingId}/`, payload);
+                await positionService.updatePosition(editingId, payload as PositionUpdateData);
                 setSuccessMsg('Cargo actualizado correctamente');
             } else {
-                await api.post('/cargos/', payload);
+                await positionService.createPosition(payload as PositionCreateData);
                 setSuccessMsg('Cargo creado correctamente');
             }
             
@@ -115,26 +98,37 @@ export default function PositionsPage() {
         if (!window.confirm('¿Estás seguro de eliminar este cargo?')) return;
 
         try {
-            await api.delete(`/cargos/${id}/`);
+            await positionService.deletePosition(id);
             setSuccessMsg('Cargo eliminado correctamente');
             loadPositions();
             setTimeout(() => setSuccessMsg(null), 3000);
-        } catch (err) {
-            setError('Error al eliminar cargo');
+        } catch (err: any) {
+            setError(err?.response?.data?.detail || 'Error al eliminar cargo');
         }
     };
 
-    const handleEdit = (position: Position) => {
+    const handleEdit = (position: PositionData) => {
+        let beneficiosValue = '';
+        if (typeof position.beneficios === 'string') {
+            beneficiosValue = position.beneficios;
+        } else if (position.beneficios) {
+            try {
+                beneficiosValue = JSON.stringify(position.beneficios);
+            } catch (err) {
+                console.error('No se pudo serializar beneficios', err);
+            }
+        }
+
         setFormData({
             nombre: position.nombre,
-            descripcion: position.descripcion,
-            nivel_requerido: position.nivel_requerido || 'junior',
+            descripcion: position.descripcion || '',
+            nivel_requerido: position.nivel || 'junior',
             salario_base: position.salario_base?.toString() || '0',
             salario_minimo: position.salario_minimo?.toString() || '0',
             salario_maximo: position.salario_maximo?.toString() || '0',
             departamento: position.departamento || 'RRHH',
             responsabilidades: position.responsabilidades || '',
-            beneficios: position.beneficios ? JSON.stringify(position.beneficios) : '',
+            beneficios: beneficiosValue,
         });
         setEditingId(position.id);
         setIsModalOpen(true);
@@ -204,10 +198,10 @@ export default function PositionsPage() {
                             >
                                 <h3 className="text-lg font-semibold text-slate-900 mb-2">{position.nombre}</h3>
                                 <p className="text-slate-600 text-sm mb-3 line-clamp-2">{position.descripcion}</p>
-                                {position.nivel_requerido && (
+                                {position.nivel && (
                                     <div className="mb-3">
                                         <span className="inline-block bg-brand-50 text-brand-800 text-xs px-2 py-1 rounded">
-                                            {position.nivel_requerido}
+                                            {position.nivel}
                                         </span>
                                     </div>
                                 )}

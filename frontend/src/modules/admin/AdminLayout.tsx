@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminNavigation from './components/AdminNavigation';
 import { useAuth } from '../../core/auth/AuthContext';
+import logo from '../../../media/talentrack_small.svg';
 
 export default function AdminLayout({ children }: { children?: ReactNode }) {
     const navigate = useNavigate();
@@ -15,10 +16,13 @@ export default function AdminLayout({ children }: { children?: ReactNode }) {
         <div className="min-h-screen bg-slate-100 flex flex-col">
             <header className="bg-white border-b border-slate-200 shadow-sm">
                 <div className="px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
-                    <div>
-                        <p className="text-xs uppercase tracking-wide text-slate-500">Administración</p>
-                        <h1 className="text-xl font-semibold text-slate-900">Control centralizado</h1>
-                        <p className="text-xs text-slate-500">Sesión: {user?.name ?? 'Usuario'}</p>
+                    <div className="flex items-center gap-3">
+                        <img src={logo} alt="Talent Track" className="h-10 w-auto" />
+                        <div>
+                            <p className="text-xs uppercase tracking-wide text-slate-500">Administración</p>
+                            <h1 className="text-xl font-semibold text-slate-900">Control centralizado</h1>
+                            <p className="text-xs text-slate-500">Sesión: {user?.name ?? 'Usuario'}</p>
+                        </div>
                     </div>
                     <div className="flex items-center gap-3 w-full lg:w-auto">
                         <div className="flex-1 lg:flex-none">

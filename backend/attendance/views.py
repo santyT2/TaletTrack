@@ -27,6 +27,7 @@ from .models import (
     EventoAsistencia,
     JornadaCalculada,
     WorkShift,
+    AttendanceRecord,
 )
 from .serializers import (
     RegistroAsistenciaSerializer,
@@ -36,8 +37,164 @@ from .serializers import (
     ReglaAsistenciaSerializer,
     EventoAsistenciaSerializer,
     JornadaCalculadaSerializer,
+    AttendanceRecordSerializer,
 )
 from employees.models import Empleado
+
+
+def _resolve_employee(user):
+    if not user:
+        return None
+    if getattr(user, "role", None) == "ADMIN":
+        return None
+    if user.email:
+        emp = Empleado.objects.filter(email=user.email).first()
+        if emp:
+            return emp
+    return Empleado.objects.filter(email=user.username).first()
+
+
+class AttendanceRecordMarkView(APIView):
+    """Marca asistencia georreferenciada."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        employee = _resolve_employee(request.user)
+        if not employee:
+            return Response({'detail': 'Empleado no encontrado para el usuario'}, status=status.HTTP_403_FORBIDDEN)
+
+        data = request.data
+        mark_type = data.get('type', 'CHECK_IN')
+        lat = data.get('latitude')
+        lng = data.get('longitude')
+        user_agent = request.META.get('HTTP_USER_AGENT', '')[:255]
+
+        now = timezone.localtime()
+        is_late = False
+        if mark_type == 'CHECK_IN' and getattr(employee, 'current_shift', None) and employee.current_shift.start_time:
+            shift_start = employee.current_shift.start_time
+            is_late = now.time() > shift_start
+
+        record = AttendanceRecord.objects.create(
+            employee=employee,
+            type=mark_type,
+            latitude=lat,
+            longitude=lng,
+            device_info=user_agent,
+            is_late=is_late,
+        )
+
+        serializer = AttendanceRecordSerializer(record)
+        return Response({'record': serializer.data}, status=status.HTTP_201_CREATED)
+
+
+class AttendanceRecordHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        employee = _resolve_employee(request.user)
+        if not employee:
+            return Response([], status=status.HTTP_200_OK)
+
+        qs = AttendanceRecord.objects.filter(employee=employee).order_by('-timestamp')
+        limit = request.query_params.get('limit')
+        if limit:
+            try:
+                qs = qs[: int(limit)]
+            except ValueError:
+                pass
+        serializer = AttendanceRecordSerializer(qs, many=True)
+        return Response(serializer.data)
+
+
+class AttendanceTodayStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        employee = _resolve_employee(request.user)
+        if not employee:
+            return Response({'has_checked_in': False, 'has_checked_out': False, 'server_time': timezone.now()}, status=status.HTTP_200_OK)
+
+        today = timezone.localtime().date()
+        qs = AttendanceRecord.objects.filter(employee=employee, timestamp__date=today).order_by('-timestamp')
+        has_checked_in = qs.filter(type='CHECK_IN').exists()
+        has_checked_out = qs.filter(type='CHECK_OUT').exists()
+        last = qs.first()
+        payload = {
+            'has_checked_in': has_checked_in,
+            'has_checked_out': has_checked_out,
+            'last_type': last.type if last else None,
+            'last_timestamp': last.timestamp if last else None,
+            'server_time': timezone.now(),
+        }
+        return Response(payload)
+
+
+class AttendanceRecordViewSet(viewsets.ModelViewSet):
+    """Listado de registros de asistencia (nueva tabla) con visibilidad HR/Admin."""
+
+    queryset = AttendanceRecord.objects.select_related('employee', 'employee__sucursal', 'employee__cargo').all()
+    serializer_class = AttendanceRecordSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
+    ordering_fields = ['timestamp']
+    ordering = ['-timestamp']
+    search_fields = [
+        'employee__nombres',
+        'employee__apellidos',
+        'employee__email',
+        'employee__cargo__nombre',
+        'employee__sucursal__nombre',
+    ]
+
+    def _is_hr(self, user):
+        role = getattr(user, 'role', None)
+        return user.is_superuser or getattr(user, 'is_staff', False) or role in ['ADMIN', 'ADMIN_RRHH', 'HR', 'SUPERADMIN']
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        date_param = self.request.query_params.get('date')
+        start_date = self.request.query_params.get('start_date')
+        end_date = self.request.query_params.get('end_date')
+        start_time = self.request.query_params.get('start_time')
+        end_time = self.request.query_params.get('end_time')
+        employee_id = self.request.query_params.get('employee')
+        sucursal_id = self.request.query_params.get('sucursal')
+
+        if not self._is_hr(user):
+            employee = _resolve_employee(user)
+            if not employee:
+                return qs.none()
+            qs = qs.filter(employee=employee)
+
+        if employee_id:
+            qs = qs.filter(employee_id=employee_id)
+        if sucursal_id:
+            qs = qs.filter(employee__sucursal_id=sucursal_id)
+
+        if date_param:
+            qs = qs.filter(timestamp__date=date_param)
+        else:
+            if start_date:
+                qs = qs.filter(timestamp__date__gte=start_date)
+            if end_date:
+                qs = qs.filter(timestamp__date__lte=end_date)
+
+        if start_time:
+            try:
+                parsed = datetime.strptime(start_time, "%H:%M").time()
+                qs = qs.filter(timestamp__time__gte=parsed)
+            except ValueError:
+                pass
+        if end_time:
+            try:
+                parsed = datetime.strptime(end_time, "%H:%M").time()
+                qs = qs.filter(timestamp__time__lte=parsed)
+            except ValueError:
+                pass
+        return qs
 
 
 class MarcarAsistenciaView(APIView):
@@ -223,7 +380,7 @@ class RegistroAsistenciaViewSet(viewsets.ModelViewSet):
         serializer.save(empleado=empleado)
 
 
-class WorkShiftViewSet(viewsets.ReadOnlyModelViewSet):
+class WorkShiftViewSet(viewsets.ModelViewSet):
     queryset = WorkShift.objects.select_related("empresa").all()
     serializer_class = WorkShiftSerializer
     permission_classes = [AllowAny]

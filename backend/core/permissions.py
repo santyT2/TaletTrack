@@ -46,3 +46,39 @@ class IsOwner(BasePermission):
             return obj.pk == user.pk
 
         return False
+
+
+class IsSuperAdmin(BasePermission):
+    """Permite solo a usuarios con rol SUPERADMIN."""
+
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(user and user.is_authenticated and getattr(user, "role", None) == "SUPERADMIN")
+
+
+class IsSuperAdminOrReadOnly(BasePermission):
+    """Permite lectura a todos los usuarios autenticados, pero solo SUPERADMIN puede editar."""
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        
+        # Lectura permitida para todos
+        if request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return True
+        
+        # Escritura solo para SUPERADMIN o ADMIN_RRHH
+        return getattr(user, "role", None) in ["SUPERADMIN", "ADMIN_RRHH"]
+
+
+class IsAdminRRHH(BasePermission):
+    """Permite solo a usuarios con rol ADMIN_RRHH o SUPERADMIN."""
+
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(
+            user 
+            and user.is_authenticated 
+            and getattr(user, "role", None) in ["SUPERADMIN", "ADMIN_RRHH"]
+        )

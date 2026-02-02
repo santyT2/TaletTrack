@@ -1,23 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Search, MapPin, Phone, Users } from 'lucide-react';
-import api from '../../../core/services/api';
-
-interface Branch {
-    id: number;
-    nombre: string;
-    direccion: string;
-    direccion_exacta?: string;
-    telefono_fijo?: string;
-    capacidad_maxima?: number;
-    telefono: string;
-    ciudad?: string;
-    empresa?: number;
-    tipo?: string;
-    gerente_encargado?: number | null;
-}
+import { branchService, employeeService } from '../../../core/services/adminService';
+import type { BranchData, BranchCreateData, Employee } from '../../../core/services/adminService';
 
 export default function BranchesPage() {
-    const [branches, setBranches] = useState<Branch[]>([]);
+    const [branches, setBranches] = useState<BranchData[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -27,17 +14,17 @@ export default function BranchesPage() {
 
     const [managerOptions, setManagerOptions] = useState<{ id: number; nombre: string }[]>([]);
 
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<BranchCreateData>({
         nombre: '',
         direccion: '',
         direccion_exacta: '',
         telefono: '',
         telefono_fijo: '',
         ciudad: '',
-        empresa: '1',
+        empresa: 1,
         tipo: 'sede',
         capacidad_maxima: '',
-        gerente_encargado: '',
+        gerente_encargado: null,
     });
 
     useEffect(() => {
@@ -47,13 +34,11 @@ export default function BranchesPage() {
 
     const loadManagers = async () => {
         try {
-            const response = await api.get('/empleados/');
-            const raw = Array.isArray(response.data?.results)
-                ? response.data.results
-                : Array.isArray(response.data)
-                ? response.data
-                : [];
-            const mapped = raw.map((e: any) => ({ id: e.id, nombre: `${e.nombres || ''} ${e.apellidos || ''}`.trim() }));
+            const response = await employeeService.getEmployees();
+            const employees: Employee[] = Array.isArray(response)
+                ? response
+                : response?.results || [];
+            const mapped = employees.map((e) => ({ id: e.id, nombre: `${e.nombres || ''} ${e.apellidos || ''}`.trim() }));
             setManagerOptions(mapped);
         } catch (err) {
             console.error(err);
@@ -63,21 +48,12 @@ export default function BranchesPage() {
     const loadBranches = async () => {
         try {
             setLoading(true);
-            const response = await api.get('/sucursales/');
-            const raw = Array.isArray(response.data?.results)
-                ? response.data.results
-                : Array.isArray(response.data)
-                ? response.data
-                : [];
-            if (!Array.isArray(response.data?.results) && !Array.isArray(response.data)) {
-                setError('Respuesta inesperada al listar sucursales');
-            } else {
-                setError(null);
-            }
-            setBranches(raw);
-        } catch (err) {
+            const data = await branchService.getBranches();
+            setError(null);
+            setBranches(Array.isArray(data) ? data : data?.results || []);
+        } catch (err: any) {
             console.error(err);
-            setError('Error al cargar sucursales');
+            setError(err?.response?.data?.detail || 'Error al cargar sucursales');
         } finally {
             setLoading(false);
         }
@@ -95,16 +71,16 @@ export default function BranchesPage() {
         try {
             const payload = { ...formData };
             if (editingId) {
-                await api.patch(`/sucursales/${editingId}/`, payload);
+                await branchService.updateBranch(editingId, payload);
                 setSuccessMsg('Sucursal actualizada correctamente');
             } else {
-                await api.post('/sucursales/', payload);
+                await branchService.createBranch(payload);
                 setSuccessMsg('Sucursal creada correctamente');
             }
             
             setIsModalOpen(false);
             setEditingId(null);
-            setFormData({ nombre: '', direccion: '', direccion_exacta: '', telefono: '', telefono_fijo: '', ciudad: '', empresa: '1', tipo: 'sede', capacidad_maxima: '', gerente_encargado: '' });
+            setFormData({ nombre: '', direccion: '', direccion_exacta: '', telefono: '', telefono_fijo: '', ciudad: '', empresa: 1, tipo: 'sede', capacidad_maxima: '', gerente_encargado: null });
             loadBranches();
             setTimeout(() => setSuccessMsg(null), 3000);
         } catch (err: any) {
@@ -116,16 +92,16 @@ export default function BranchesPage() {
         if (!window.confirm('¿Estás seguro de eliminar esta sucursal?')) return;
 
         try {
-            await api.delete(`/sucursales/${id}/`);
+            await branchService.deleteBranch(id);
             setSuccessMsg('Sucursal eliminada correctamente');
             loadBranches();
             setTimeout(() => setSuccessMsg(null), 3000);
-        } catch (err) {
-            setError('Error al eliminar sucursal');
+        } catch (err: any) {
+            setError(err?.response?.data?.detail || 'Error al eliminar sucursal');
         }
     };
 
-    const handleEdit = (branch: Branch) => {
+    const handleEdit = (branch: BranchData) => {
         setFormData({
             nombre: branch.nombre,
             direccion: branch.direccion,
@@ -133,10 +109,10 @@ export default function BranchesPage() {
             telefono: branch.telefono,
             telefono_fijo: branch.telefono_fijo || '',
             ciudad: branch.ciudad || '',
-            empresa: branch.empresa?.toString() || '1',
+            empresa: branch.empresa || 1,
             tipo: branch.tipo || 'sede',
-            capacidad_maxima: branch.capacidad_maxima?.toString() || '',
-            gerente_encargado: branch.gerente_encargado ? String(branch.gerente_encargado) : '',
+            capacidad_maxima: branch.capacidad_maxima ?? '',
+            gerente_encargado: branch.gerente_encargado ?? null,
         });
         setEditingId(branch.id);
         setIsModalOpen(true);
@@ -158,7 +134,7 @@ export default function BranchesPage() {
                 <button
                     onClick={() => {
                         setEditingId(null);
-                        setFormData({ nombre: '', direccion: '', direccion_exacta: '', telefono: '', telefono_fijo: '', ciudad: '', empresa: '1', tipo: 'sede', capacidad_maxima: '', gerente_encargado: '' });
+                        setFormData({ nombre: '', direccion: '', direccion_exacta: '', telefono: '', telefono_fijo: '', ciudad: '', empresa: 1, tipo: 'sede', capacidad_maxima: '', gerente_encargado: null });
                         setIsModalOpen(true);
                     }}
                     className="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md transition-colors"
@@ -312,13 +288,16 @@ export default function BranchesPage() {
                                 type="number"
                                 min="0"
                                 placeholder="Capacidad máxima"
-                                value={formData.capacidad_maxima}
-                                onChange={(e) => setFormData({ ...formData, capacidad_maxima: e.target.value })}
+                                value={formData.capacidad_maxima === '' ? '' : formData.capacidad_maxima}
+                                onChange={(e) => setFormData({ ...formData, capacidad_maxima: e.target.value === '' ? '' : Number(e.target.value) })}
                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500"
                             />
                             <select
-                                value={formData.gerente_encargado}
-                                onChange={(e) => setFormData({ ...formData, gerente_encargado: e.target.value })}
+                                value={formData.gerente_encargado ?? ''}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setFormData({ ...formData, gerente_encargado: val ? Number(val) : null });
+                                }}
                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500"
                             >
                                 <option value="">Gerente encargado (opcional)</option>
@@ -331,7 +310,7 @@ export default function BranchesPage() {
                                     type="number"
                                     placeholder="ID Empresa"
                                     value={formData.empresa}
-                                    onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
+                                    onChange={(e) => setFormData({ ...formData, empresa: Number(e.target.value) || 0 })}
                                     className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-500"
                                     min="1"
                                 />

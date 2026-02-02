@@ -11,11 +11,11 @@ from attendance.models import RegistroAsistencia
 from django.utils import timezone
 
 print("=" * 60)
-print("🚀 POBLANDO BASE DE DATOS CON DATOS DE PRUEBA")
+print(" POBLANDO BASE DE DATOS CON DATOS DE PRUEBA")
 print("=" * 60)
 
 # ========== SUCURSALES ==========
-print("\n📍 Creando Sucursales...")
+print("\n Creando Sucursales...")
 sucursales_data = [
     {'nombre': 'Sucursal Principal', 'direccion': 'Calle 123 #45-67', 'ciudad': 'Bogotá', 'telefono': '3001234567'},
     {'nombre': 'Sucursal Norte', 'direccion': 'Carrera 89 #12-34', 'ciudad': 'Bogotá', 'telefono': '3007654321'},

@@ -39,6 +39,28 @@ class WorkShift(TimeStampedModel):
         return f"{self.name} ({self.empresa})"
 
 
+class AttendanceRecord(TimeStampedModel):
+    TYPE_CHOICES = [
+        ('CHECK_IN', 'Check in'),
+        ('CHECK_OUT', 'Check out'),
+        ('LUNCH_START', 'Almuerzo inicio'),
+        ('LUNCH_END', 'Almuerzo fin'),
+    ]
+
+    employee = models.ForeignKey(Empleado, on_delete=models.CASCADE, related_name='attendance_records')
+    timestamp = models.DateTimeField(auto_now_add=True)
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES)
+    latitude = models.DecimalField(max_digits=18, decimal_places=9, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=18, decimal_places=9, null=True, blank=True)
+    device_info = models.CharField(max_length=255, blank=True, null=True)
+    is_late = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = "Registro de Asistencia"
+        verbose_name_plural = "Registros de Asistencia"
+        ordering = ['-timestamp']
+
+
 class Geocerca(TimeStampedModel):
     TIPO_CHOICES = [
         ('circulo', 'Círculo'),

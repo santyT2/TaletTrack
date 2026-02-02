@@ -58,10 +58,13 @@ export default function PrenominaPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Pre-nómina</h1>
           <p className="text-gray-600 mt-1">Resumen mensual para cálculo de nómina</p>
+          <span className="mt-2 inline-flex items-center text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-100 px-3 py-1 rounded-full">
+            Moneda base: USD ($)
+          </span>
         </div>
         <button
           onClick={exportarExcel}

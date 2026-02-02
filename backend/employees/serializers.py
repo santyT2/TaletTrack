@@ -9,7 +9,13 @@ from .models import (
     KPI, ResultadoKPI,
     Cargo, Contract, LeaveRequest, OnboardingTask,
 )
-from attendance.models import Turno
+from attendance.models import Turno, WorkShift
+
+
+class WorkShiftNestedSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WorkShift
+        fields = ['id', 'name', 'start_time', 'end_time', 'days']
 
 
 class EmpresaSerializer(serializers.ModelSerializer):
@@ -27,6 +33,51 @@ class SucursalSerializer(serializers.ModelSerializer):
 
     def get_employee_count(self, obj):
         return obj.empleados.filter(estado='activo').count()
+
+
+class ContratoSerializer(serializers.ModelSerializer):
+    empleado_nombre = serializers.CharField(source='empleado.nombre_completo', read_only=True)
+    dias_restantes = serializers.SerializerMethodField()
+    turno_nombre = serializers.CharField(source='contrato_turno.nombre', read_only=True)
+    turno_horario = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Contrato
+        fields = '__all__'
+
+    def get_dias_restantes(self, obj):
+        if obj.fecha_fin and obj.estado == 'activo':
+            delta = obj.fecha_fin - timezone.now().date()
+            return delta.days
+        return None
+
+    def get_turno_horario(self, obj):
+        if obj.contrato_turno:
+            return f"{obj.contrato_turno.hora_inicio} - {obj.contrato_turno.hora_fin}"
+        return None
+
+
+class ContractSerializer(serializers.ModelSerializer):
+    employee_name = serializers.CharField(source='employee.nombre_completo', read_only=True)
+    branch_name = serializers.CharField(source='employee.sucursal.nombre', read_only=True, default=None)
+    position_name = serializers.CharField(source='employee.cargo.nombre', read_only=True, default=None)
+    days_until_expiry = serializers.SerializerMethodField()
+    is_expiring_soon = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Contract
+        fields = '__all__'
+        read_only_fields = ['created_at', 'updated_at']
+
+    def get_days_until_expiry(self, obj):
+        if obj.end_date and obj.is_active:
+            delta = obj.end_date - timezone.now().date()
+            return delta.days
+        return None
+
+    def get_is_expiring_soon(self, obj):
+        days = self.get_days_until_expiry(obj)
+        return days is not None and 0 <= days <= 30
 
 
 class EmpleadoListSerializer(serializers.ModelSerializer):
@@ -82,6 +133,9 @@ class EmpleadoSerializer(serializers.ModelSerializer):
     active_contract = serializers.SerializerMethodField(read_only=True)
     current_shift_name = serializers.CharField(source='current_shift.name', read_only=True, default=None)
     position_details = serializers.SerializerMethodField(read_only=True)
+    current_shift = serializers.PrimaryKeyRelatedField(queryset=WorkShift.objects.all(), allow_null=True, required=False)
+    current_shift_detail = WorkShiftNestedSerializer(source='current_shift', read_only=True)
+    contract_details = ContractSerializer(source='contract', required=False, allow_null=True)
 
     class Meta:
         model = Empleado
@@ -96,6 +150,20 @@ class EmpleadoSerializer(serializers.ModelSerializer):
         if not cargo:
             raise serializers.ValidationError("Debes seleccionar un cargo")
         return attrs
+
+    def create(self, validated_data):
+        contract_data = validated_data.pop('contract', None)
+        empleado = super().create(validated_data)
+        if contract_data:
+            Contract.objects.update_or_create(employee=empleado, defaults=contract_data)
+        return empleado
+
+    def update(self, instance, validated_data):
+        contract_data = validated_data.pop('contract', None)
+        empleado = super().update(instance, validated_data)
+        if contract_data is not None:
+            Contract.objects.update_or_create(employee=empleado, defaults=contract_data)
+        return empleado
 
     def get_full_name(self, obj):
         return obj.nombre_completo
@@ -142,28 +210,6 @@ class EmpleadoSerializer(serializers.ModelSerializer):
             "min_salary": cargo.salario_minimo,
             "max_salary": cargo.salario_maximo,
         }
-
-
-class ContratoSerializer(serializers.ModelSerializer):
-    empleado_nombre = serializers.CharField(source='empleado.nombre_completo', read_only=True)
-    dias_restantes = serializers.SerializerMethodField()
-    turno_nombre = serializers.CharField(source='contrato_turno.nombre', read_only=True)
-    turno_horario = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Contrato
-        fields = '__all__'
-
-    def get_dias_restantes(self, obj):
-        if obj.fecha_fin and obj.estado == 'activo':
-            delta = obj.fecha_fin - timezone.now().date()
-            return delta.days
-        return None
-
-    def get_turno_horario(self, obj):
-        if obj.contrato_turno:
-            return f"{obj.contrato_turno.hora_inicio} - {obj.contrato_turno.hora_fin}"
-        return None
 
 
 class DocumentoEmpleadoSerializer(serializers.ModelSerializer):
@@ -320,29 +366,6 @@ class CargoSerializer(serializers.ModelSerializer):
         return obj.empleados.filter(estado='activo').count() if hasattr(obj, 'empleados') else 0
 
 
-class ContractSerializer(serializers.ModelSerializer):
-    employee_name = serializers.CharField(source='employee.nombre_completo', read_only=True)
-    branch_name = serializers.CharField(source='employee.sucursal.nombre', read_only=True, default=None)
-    position_name = serializers.CharField(source='employee.cargo.nombre', read_only=True, default=None)
-    days_until_expiry = serializers.SerializerMethodField()
-    is_expiring_soon = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Contract
-        fields = '__all__'
-        read_only_fields = ['created_at', 'updated_at']
-
-    def get_days_until_expiry(self, obj):
-        if obj.end_date and obj.is_active:
-            delta = obj.end_date - timezone.now().date()
-            return delta.days
-        return None
-
-    def get_is_expiring_soon(self, obj):
-        days = self.get_days_until_expiry(obj)
-        return days is not None and 0 <= days <= 30
-
-
 class LeaveRequestSerializer(serializers.ModelSerializer):
     employee_name = serializers.CharField(source='employee.nombre_completo', read_only=True)
     employee_email = serializers.CharField(source='employee.email', read_only=True)
@@ -371,21 +394,44 @@ class OnboardingTaskSerializer(serializers.ModelSerializer):
         return False
 
 
-class OrganigramNodeSerializer(serializers.ModelSerializer):
-    nombre_completo = serializers.ReadOnlyField()
-    full_name = serializers.SerializerMethodField(read_only=True)
-    cargo_nombre = serializers.CharField(source='cargo.nombre', read_only=True)
-    position_name = serializers.CharField(source='cargo.nombre', read_only=True)
-    branch_name = serializers.CharField(source='sucursal.nombre', read_only=True)
-    subordinates = serializers.SerializerMethodField()
+class OrganigramSerializer(serializers.ModelSerializer):
+    """Serializer recursivo que expone la forma requerida para react-d3-tree."""
+
+    name = serializers.SerializerMethodField(read_only=True)
+    attributes = serializers.SerializerMethodField(read_only=True)
+    children = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Empleado
-        fields = ['id', 'nombre_completo', 'full_name', 'cargo_nombre', 'position_name', 'branch_name', 'foto_url', 'email', 'subordinates']
+        fields = ['id', 'name', 'attributes', 'children']
 
-    def get_subordinates(self, obj):
-        subordinates = obj.subordinados.filter(estado='activo')
-        return OrganigramNodeSerializer(subordinates, many=True).data
-
-    def get_full_name(self, obj):
+    def get_name(self, obj: Empleado) -> str:
         return obj.nombre_completo
+
+    def get_attributes(self, obj: Empleado) -> dict:
+        cargo_nombre = obj.cargo.nombre if obj.cargo else 'Sin cargo asignado'
+        departamento = None
+        if obj.cargo and hasattr(obj.cargo, 'departamento'):
+            departamento = obj.cargo.departamento
+        elif obj.sucursal:
+            departamento = obj.sucursal.nombre
+
+        foto = obj.foto_url
+        photo_url = None
+        if foto:
+            request = self.context.get('request')
+            if request and hasattr(foto, 'url'):
+                photo_url = request.build_absolute_uri(foto.url)
+            else:
+                photo_url = getattr(foto, 'url', None) or foto
+
+        return {
+            'cargo': cargo_nombre,
+            'foto': photo_url,
+            'departamento': departamento,
+        }
+
+    def get_children(self, obj: Empleado):
+        children_map = self.context.get('children_map') or {}
+        children = children_map.get(obj.id, [])
+        return OrganigramSerializer(children, many=True, context=self.context).data

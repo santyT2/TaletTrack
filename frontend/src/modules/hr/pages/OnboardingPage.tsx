@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import hrService, { type OnboardingTask, type EmpleadoLite } from '../../../core/services/hrService';
-import { CheckCircle, Circle, Plus, X, AlertCircle, Calendar, Trash2 } from 'lucide-react';
+import hrService, { type OnboardingTask, type EmpleadoLite, type EmployeeRow } from '../../../core/services/hrService';
+import { CheckCircle, Circle, Plus, X, AlertCircle, Calendar, Trash2, Users } from 'lucide-react';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
+import EmployeeSelector from '../components/EmployeeSelector';
 
 export default function OnboardingPage() {
     const [tasks, setTasks] = useState<OnboardingTask[]>([]);
@@ -13,6 +14,8 @@ export default function OnboardingPage() {
 
     const [empleados, setEmpleados] = useState<EmpleadoLite[]>([]);
     const [selectedEmployee, setSelectedEmployee] = useState<number | null>(null);
+    const [selectorOpen, setSelectorOpen] = useState(false);
+    const [selectedEmployeeInfo, setSelectedEmployeeInfo] = useState<EmployeeRow | null>(null);
 
     // Form State
     const [formData, setFormData] = useState<Partial<OnboardingTask>>({
@@ -139,16 +142,17 @@ export default function OnboardingPage() {
                     <h1 className="text-3xl font-bold text-gray-800">Onboarding</h1>
                     <p className="text-gray-600 mt-1">Gestión de tareas de inducción</p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <select
-                        value={selectedEmployee ?? ''}
-                        onChange={(e) => setSelectedEmployee(Number(e.target.value))}
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                <div className="flex items-center gap-3 flex-wrap">
+                    <button
+                        onClick={() => setSelectorOpen(true)}
+                        className="px-3 py-2 border border-gray-300 rounded-lg bg-white flex items-center gap-2 text-sm hover:border-indigo-400"
                     >
-                        {empleados.map((emp) => (
-                            <option key={emp.id} value={emp.id}>{emp.nombre_completo || `Empleado ${emp.id}`}</option>
-                        ))}
-                    </select>
+                        <Users className="w-4 h-4 text-indigo-600" />
+                        {selectedEmployeeInfo?.nombre_completo || empleados.find(e => e.id === selectedEmployee)?.nombre_completo || 'Elegir empleado'}
+                    </button>
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                        {selectedEmployeeInfo?.cargo_nombre || 'Cargo no asignado'} · {selectedEmployeeInfo?.sucursal_nombre || 'Sucursal no asignada'}
+                    </div>
                     <button
                         onClick={() => setIsModalOpen(true)}
                         className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-md transition-colors"
@@ -379,6 +383,17 @@ export default function OnboardingPage() {
                     </div>
                 </div>
             )}
+
+                        <EmployeeSelector
+                            open={selectorOpen}
+                            onClose={() => setSelectorOpen(false)}
+                            initialId={selectedEmployee}
+                            onSelect={(emp) => {
+                                setSelectedEmployee(emp.id);
+                                setSelectedEmployeeInfo(emp);
+                                setSelectorOpen(false);
+                            }}
+                        />
         </div>
     );
 }

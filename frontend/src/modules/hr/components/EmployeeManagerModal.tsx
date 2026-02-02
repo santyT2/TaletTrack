@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { X, Save, Clock3 } from 'lucide-react';
+import { X, Save, Clock3, Plus } from 'lucide-react';
 import hrService, { type EmployeeRow, type ContractPayload, type WorkShift } from '../../../core/services/hrService';
 
 interface Props {
@@ -17,6 +17,9 @@ export default function EmployeeManagerModal({ employee, onClose, onSaved }: Pro
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [workShifts, setWorkShifts] = useState<WorkShift[]>([]);
+  const [showNewShift, setShowNewShift] = useState(false);
+  const [creatingShift, setCreatingShift] = useState(false);
+  const [newShift, setNewShift] = useState({ name: '', start_time: '09:00', end_time: '18:00', days: '0,1,2,3,4' });
 
   const [contractForm, setContractForm] = useState({
     contract_type: (employee.active_contract?.contract_type as ContractPayload['contract_type']) || 'INDEFINIDO',
@@ -42,6 +45,37 @@ export default function EmployeeManagerModal({ employee, onClose, onSaved }: Pro
     }
   };
 
+  const parseDays = (value: string): number[] =>
+    value
+      .split(',')
+      .map((d) => d.trim())
+      .filter((d) => d !== '')
+      .map((d) => Number(d))
+      .filter((n) => Number.isFinite(n));
+
+  const createShift = async () => {
+    try {
+      setCreatingShift(true);
+      setError(null);
+      const payload = {
+        name: newShift.name.trim() || 'Turno',
+        start_time: newShift.start_time,
+        end_time: newShift.end_time,
+        days: parseDays(newShift.days),
+        empresa: (employee as any).empresa || 1,
+      };
+      const created = await hrService.createWorkShift(payload);
+      setWorkShifts((prev) => [...prev, created]);
+      setShiftId(created.id);
+      setShowNewShift(false);
+    } catch (err) {
+      console.error(err);
+      setError('No se pudo crear el turno.');
+    } finally {
+      setCreatingShift(false);
+    }
+  };
+
   const minSalary = employee.position_details ? Number(employee.position_details.min_salary) : NaN;
   const maxSalary = employee.position_details ? Number(employee.position_details.max_salary) : NaN;
   const salaryWarning = Number.isFinite(minSalary) && Number.isFinite(maxSalary) && (contractForm.salary < minSalary || contractForm.salary > maxSalary)
@@ -52,13 +86,14 @@ export default function EmployeeManagerModal({ employee, onClose, onSaved }: Pro
     try {
       setSaving(true);
       setError(null);
+      const selectedShift = workShifts.find((s) => s.id === shiftId);
       const payload: ContractPayload = {
         employee: employee.id,
         contract_type: contractForm.contract_type,
         start_date: contractForm.start_date,
         end_date: contractForm.end_date || null,
         salary: Number(contractForm.salary || 0),
-        schedule_description: contractForm.schedule_description,
+        schedule_description: selectedShift ? `${selectedShift.start_time} - ${selectedShift.end_time}` : contractForm.schedule_description,
         is_active: true,
       };
       await hrService.saveContract(payload);
@@ -76,7 +111,7 @@ export default function EmployeeManagerModal({ employee, onClose, onSaved }: Pro
       if (shiftId === undefined) return;
       setSaving(true);
       setError(null);
-      await hrService.assignShift(employee.id, shiftId);
+      await hrService.assignShift(employee.id, shiftId ?? null);
       await onSaved();
     } catch (err) {
       console.error(err);
@@ -180,14 +215,13 @@ export default function EmployeeManagerModal({ employee, onClose, onSaved }: Pro
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="text-sm font-semibold text-slate-700">Descripción de horario</label>
-                <input
-                  type="text"
-                  className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
-                  value={contractForm.schedule_description}
-                  onChange={(e) => setContractForm({ ...contractForm, schedule_description: e.target.value })}
-                  placeholder="L-V 9-18"
-                />
+                <label className="text-sm font-semibold text-slate-700">Horario asignado</label>
+                <p className="mt-1 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                  {shiftId && workShifts.length ?
+                    `${workShifts.find((s) => s.id === shiftId)?.start_time || '—'} - ${workShifts.find((s) => s.id === shiftId)?.end_time || '—'}`
+                    : contractForm.schedule_description}
+                </p>
+                <p className="text-xs text-slate-500 mt-1">Se toma del turno asignado. Edita desde la pestaña "Horario/Turno".</p>
               </div>
             </div>
             <div className="flex justify-end">
@@ -206,7 +240,16 @@ export default function EmployeeManagerModal({ employee, onClose, onSaved }: Pro
           <div className="px-6 pb-6 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-semibold text-slate-700">Seleccionar turno</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-slate-700">Seleccionar turno</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewShift((v) => !v)}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-700 hover:text-indigo-900"
+                  >
+                    <Plus className="w-4 h-4" /> Nuevo turno
+                  </button>
+                </div>
                 <select
                   className="mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
                   value={shiftId ?? ''}
@@ -217,6 +260,47 @@ export default function EmployeeManagerModal({ employee, onClose, onSaved }: Pro
                     <option key={shift.id} value={shift.id}>{`${shift.name} (${shift.start_time} - ${shift.end_time})`}</option>
                   ))}
                 </select>
+                {showNewShift && (
+                  <div className="mt-3 space-y-2 rounded-lg border border-dashed border-slate-300 p-3 bg-slate-50">
+                    <label className="text-xs uppercase text-slate-500">Crear turno rápido</label>
+                    <input
+                      type="text"
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                      placeholder="Nombre"
+                      value={newShift.name}
+                      onChange={(e) => setNewShift({ ...newShift, name: e.target.value })}
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="time"
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                        value={newShift.start_time}
+                        onChange={(e) => setNewShift({ ...newShift, start_time: e.target.value })}
+                      />
+                      <input
+                        type="time"
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                        value={newShift.end_time}
+                        onChange={(e) => setNewShift({ ...newShift, end_time: e.target.value })}
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                      placeholder="Días ej: 0,1,2,3,4"
+                      value={newShift.days}
+                      onChange={(e) => setNewShift({ ...newShift, days: e.target.value })}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void createShift()}
+                      disabled={creatingShift}
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 disabled:opacity-60"
+                    >
+                      {creatingShift ? 'Creando...' : 'Guardar turno'}
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="border border-slate-200 rounded-lg p-3 bg-slate-50">
                 <p className="text-xs uppercase text-slate-500 mb-1">Detalle turno</p>
